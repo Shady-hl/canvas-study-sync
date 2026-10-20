@@ -1,0 +1,27 @@
+# Security and privacy
+
+## Scope
+
+This is a local, single-user beta, not a hosted multi-user application. Never deploy the resync server on a public interface or collect other users' Canvas credentials. The supported scope is read-only access your institution permits.
+
+The local server binds to `127.0.0.1`, uses a random per-instance capability, validates Host/Origin and a per-window client header, disables response caching, and has a restrictive content-security policy. It does not load external page assets. API pagination is constrained to the configured Canvas origin; credentials are stripped from attachment-host redirects. HTTPS certificate verification remains enabled.
+
+Credentials are accepted locally and held in memory/child environment variables for that run. The app does not intentionally persist them in source, archives, timing logs or command arguments. Memory-only handling does not guarantee absence from OS swap, crash dumps or processes with sufficient privileges. Do not paste credentials into issues, chats or shell commands. Revoke/rotate an exposed credential through the institution's supported process.
+
+Downloaded HTML exports strip active content. PDFs, notebooks and other attachments are still untrusted files; open them with updated software. The exporter does not execute notebook cells or invoke an AI model. Private timetable feed links and local archives must stay out of source repositories.
+
+## Throttling
+
+One request is sent at a time. The window uses 0.6–5-second spacing, honors Retry-After, waits when Canvas reports a low budget, stops the entire run after persistent throttling, and imposes request/time limits. This is not institutional approval or a guarantee against account restrictions. The CLI's explicit advanced pacing options remain available; use conservative settings.
+
+## Timing data
+
+Local history includes coarse request types, salted resource identifiers, numeric status/cost/budget, timings, sizes, run outcome, OS/Python version and optional connection labels. It excludes raw course names/resource paths, response bodies, credentials, private URLs, IP addresses, Wi-Fi names and location. History still reveals activity patterns and computer details; keep it private. See the [schema](canvas-sync/TIMING_LOGS.md).
+
+## Reporting
+
+Use the repository's **Security → Report a vulnerability** feature if enabled. Otherwise open an issue asking for a private reporting channel without including exploit details or private data. Never attach a real archive, raw HTTP headers, HAR files, signed URLs, cookies, tokens or private timetable links. Synthetic reproduction data is preferred.
+
+## Release checks
+
+Only source, synthetic tests and public documentation belong in this repository. `.gitignore` and `tools/check_release.py` reduce accidental inclusion; neither is a complete secret detector. Review the exact staged diff before publishing, enable GitHub secret/push protection where available, and never assume deleting a committed secret revokes it.

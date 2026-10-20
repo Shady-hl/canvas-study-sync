@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Canvas Resync</title>
+<style nonce="__LOCAL_KEY__">
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#16332b;background:#f4f5ef;font-size:15px}
+*{box-sizing:border-box}body{margin:0}main{max-width:1000px;margin:auto;padding:50px 28px 36px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{font-weight:650;letter-spacing:-.4px;font-size:19px}.badge{font-size:12px;border:1px solid #ced7c9;padding:7px 11px;border-radius:30px;color:#4c6656;white-space:nowrap}
+.intro{padding:44px 0 30px}h1{font-size:42px;line-height:1.08;letter-spacing:-1.7px;margin:0 0 15px;font-weight:650}.intro p{color:#627267;max-width:620px;line-height:1.65;margin:0;font-size:16px}
+.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}.card{background:white;border:1px solid #dde3d7;border-radius:18px;padding:28px}.eyebrow{font-size:11px;font-weight:700;letter-spacing:1.7px;color:#778273;margin:0 0 22px}.steps{list-style:none;padding:0;margin:0}.steps li{display:flex;gap:13px;margin:0 0 23px}.num{flex:0 0 27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#edf2e9;font-size:12px;color:#63735c}.steps h2{font-size:15px;font-weight:600;margin:3px 0 6px}.steps p{margin:0;line-height:1.55;color:#7a8378;font-size:13px}
+.path{border-top:1px solid #edf0e9;padding-top:16px;margin-top:8px;font-size:11px;line-height:1.6;color:#7c8676;overflow-wrap:anywhere}.path b{display:block;font-size:11px;color:#64735c;margin-bottom:5px;font-weight:600}
+label.title{display:block;font-size:16px;font-weight:600;margin-bottom:8px}.hint{font-size:13px;color:#7b8477;line-height:1.6;margin:0 0 17px}.inputbox{display:flex;border:1px solid #cbd6c3;border-radius:9px;overflow:hidden;background:#fbfcf9}.inputbox:focus-within{outline:2px solid #a8bca0;outline-offset:2px}input[type=password]{border:0;background:transparent;padding:14px 13px;min-width:0;width:100%;font:inherit;color:#243e2e;outline:0}.private{padding:12px 12px 12px 0;color:#7d8976;font-size:12px;align-self:center;white-space:nowrap}
+.option{display:flex;gap:9px;margin:19px 0 22px;font-size:12px;line-height:1.6;color:#67725f;align-items:flex-start}.option input{margin-top:3px;accent-color:#345e3f}.option span small{display:block;color:#92998d;font-size:11px}button{background:#2f5539;color:white;border:0;border-radius:9px;padding:15px 18px;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;width:100%;transition:background .15s}button:hover{background:#24452d}button:disabled{opacity:.6;cursor:default}.privacy{font-size:11px;line-height:1.65;color:#92998c;margin:15px 0 0}.status{margin-top:20px;padding:23px 25px;background:#eaf0e3;border:1px solid #dbe4d2;border-radius:13px;display:flex;gap:14px;align-items:flex-start}.dot{margin-top:4px;width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#69875c}.working .dot{animation:pulse 1.3s infinite}.status h2{font-size:14px;margin:0 0 6px;font-weight:600}.status p{font-size:12px;line-height:1.6;color:#718067;margin:0}.error{background:#fbefeb;border-color:#ecd7cf}.error .dot{background:#bd6f54}.error h2{color:#8e4834}.message{font-size:12px;line-height:1.5;color:#a45337;min-height:18px;margin-top:12px}details{margin-top:22px}summary{font-size:12px;color:#75836b;cursor:pointer;list-style:none}summary::before{content:'＋ ';color:#708462}details[open] summary::before{content:'− '}pre{background:#fff;border:1px solid #dce3d5;border-radius:10px;color:#586651;padding:17px;line-height:1.65;font-size:11px;max-height:310px;overflow:auto;white-space:pre-wrap;word-break:break-word}.footer{display:flex;justify-content:space-between;gap:18px;font-size:11px;color:#98a08f;margin-top:25px;line-height:1.5}.elapsed{font-size:11px;color:#7b8772;margin-left:auto;white-space:nowrap}
+@keyframes pulse{50%{opacity:.3}}@media(max-width:720px){.grid{display:flex;flex-direction:column}.form-card{order:-1}.overview{padding:16px!important}.overview .steps,.overview .eyebrow{display:none}.overview .path{border:0;margin:0;padding:0}main{padding:28px 18px}.intro{padding:34px 0 25px}h1{font-size:34px}.grid{grid-template-columns:1fr}.card{padding:23px}.footer{display:block}.footer span{display:block;margin-top:8px}.status{padding:20px}.elapsed{display:none}}
+.pace{margin:24px 0 8px;border:1px solid #dce5d4;background:#f6f9f2;border-radius:12px;padding:18px}.pace label{display:block;font-size:13px;font-weight:600}.estimate-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:13px 0 5px}.estimate-value{font-size:30px;letter-spacing:-1px;font-weight:650}.estimate-clock{font-size:12px;color:#65785b}.pace input{width:100%;accent-color:#456c3b;margin:18px 0 8px;cursor:pointer}.range-labels{display:flex;justify-content:space-between;font-size:11px;color:#718368}.estimate-note{font-size:11px;line-height:1.6;color:#7b8872;margin:12px 0 0}.pace-caption{font-size:11px;color:#607953;margin:8px 0 0}.timing-options{margin:17px 0 0}.timing-options p{font-size:11px;line-height:1.6;color:#7c8874}.timing-options label{font-size:11px;color:#66765f;display:block;margin-top:10px}.timing-options select{font:inherit;font-size:12px;max-width:100%;padding:8px;border:1px solid #d1dbc9;border-radius:6px;background:white;margin:6px 0}.log-path{overflow-wrap:anywhere}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.metric{border:1px solid #dce3d5;background:#fff;border-radius:11px;padding:15px 18px}.metric small{display:block;color:#7c8874;font-size:11px;margin-bottom:7px}.metric strong{font-size:17px;font-weight:600;color:#345037}.warning{border:1px solid #e4d0a3;background:#fbf5e8;color:#856425;border-radius:11px;margin-top:14px;padding:16px 20px;font-size:12px;line-height:1.65}.warning strong{display:block;font-weight:600}.run-eta{margin-top:6px!important;color:#506b44!important}.metric-stage{font-size:13px!important}[hidden]{display:none!important}@media(max-width:520px){.metrics{gap:7px}.metric{padding:12px 11px}.metric strong{font-size:15px}.estimate-row{align-items:flex-start;flex-direction:column;gap:3px}}
+main{padding-top:28px}.intro{padding:27px 0 25px}.intro h1{font-size:35px;letter-spacing:-1.2px}.intro p{font-size:14px;max-width:760px}.pace{margin-top:17px;padding:15px}.pace input{margin-top:12px;margin-bottom:5px}.estimate-note{margin-top:9px;line-height:1.5}.option{margin:16px 0 19px}
+.setup-input{display:block;width:100%;border:1px solid #cbd6c3;border-radius:8px;background:#fbfcf9;font:inherit;font-size:13px;padding:11px 12px;margin:0 0 16px;color:#243e2e}.setup-label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.setup-input:disabled{opacity:.7}
+</style>
+</head>
+<body><main>
+<header class="top"><div class="brand">Canvas Resync <span aria-hidden="true">↻</span></div><div class="badge">Private · on this computer</div></header>
+<section class="intro"><h1>Your study folder, refreshed.</h1><p>Choose your pace and enter your Canvas credential. We’ll update your materials, timetable and study context in the background.</p></section>
+<div class="grid">
+<section class="card overview"><p class="eyebrow">ONE RESYNC. THREE STEPS.</p><ol class="steps">
+<li><span class="num">1</span><div><h2>Get your Canvas materials</h2><p>Check all active courses and download new or changed accessible materials.</p></div></li>
+<li><span class="num">2</span><div><h2>Refresh your timetable</h2><p>Update your configured TimeEdit feed and keep its freshness visible.</p></div></li>
+<li><span class="num">3</span><div><h2>Prepare your study context</h2><p>Refresh AI_READY and the assistant snapshot. Reuse unchanged work to save time.</p></div></li>
+</ol><div class="path"><b>UPDATING THIS ARCHIVE</b><span id="archive">Connecting to your archive…</span></div></section>
+<section class="card form-card"><form id="resync-form"><label class="title" for="base-url">Your Canvas address</label><input class="setup-input" type="url" id="base-url" placeholder="https://canvas.your-school.edu" required autocomplete="off"><label class="setup-label" for="auth">Authentication</label><select class="setup-input" id="auth"><option value="token">Access token · institution-approved</option><option value="session">Session cookie · only if permitted</option></select><label class="title" id="credential-label" for="session">Your access token</label><p class="hint" id="credential-hint">Use an access token approved by your institution. Never share it in issues or chat.</p><div class="inputbox"><input type="password" id="session" name="canvas-credential" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your credential" required aria-describedby="privacy"><span class="private">Hidden</span></div>
+<div class="pace"><label for="pace">When would you like it finished?</label><div class="estimate-row"><output class="estimate-value" id="estimate" for="pace">Estimating…</output><span class="estimate-clock" id="finish-clock"></span></div><input type="range" id="pace" min="0" max="44" step="1" value="14" aria-describedby="pace-caption estimate-note" aria-valuetext="Gentler pace"><div class="range-labels"><span>Sooner</span><span>More time · gentler pace</span></div><p class="pace-caption" id="pace-caption">One request at a time.</p><p class="estimate-note" id="estimate-note">Estimates improve with your run history. Canvas pauses and new downloads can take longer.</p></div>
+<label class="option"><input type="checkbox" id="full"><span>Verify every file and rebuild all study packs<small>Optional. Takes longer than a normal resync.</small></span></label><button id="start" type="submit">Resync everything <span aria-hidden="true">↗</span></button><div id="form-message" class="message" role="alert"></div><p class="privacy" id="privacy">Your credential is used for this run and kept out of saved logs. Missing PDF support is set up automatically.</p>
+<details class="timing-options"><summary>Timing history</summary><p>Each run saves private timing data on this computer, including request types, response times, retries and local processing. Cookies, private URLs and Wi-Fi names are excluded.</p><label for="connection">Connection for this run (optional)</label><select id="connection"><option value="unknown">Unspecified</option><option value="wifi">Wi-Fi</option><option value="ethernet">Ethernet</option><option value="hotspot">Mobile hotspot</option><option value="other">Other</option></select><p class="log-path" id="timing-folder"></p></details>
+</form></section>
+</div>
+<section id="status" class="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><div><h2 id="status-title">Ready when you are.</h2><p id="status-detail">Enter your Canvas address and approved credential to start.</p><p class="run-eta" id="run-eta"></p></div><span class="elapsed" id="elapsed"></span></section>
+<div class="metrics" id="metrics" hidden><div class="metric"><small>Canvas &amp; download requests</small><strong id="requests">0</strong></div><div class="metric"><small>Server pauses</small><strong id="pauses">None</strong></div><div class="metric"><small>Current step</small><strong class="metric-stage" id="step">Preparing</strong></div></div>
+<div class="warning" id="rate-warning" role="status" hidden><strong id="warning-title"></strong><span id="warning-detail"></span></div>
+<details id="progress"><summary>View progress</summary><pre id="log">The resync log will appear here.</pre></details>
+<footer class="footer"><span>One request at a time · Automatic backoff in every mode</span><span>Keep your computer awake · Closing this tab is fine</span></footer>
+</main>
+<script nonce="__LOCAL_KEY__">
+const key='__LOCAL_KEY__', $=id=>document.getElementById(id);
+let active=false, submitting=false, initialized=false, models=null;
+const details={ready:'Enter your Canvas address and approved credential to start.',preparing:'Preparing PDF and timezone support if needed. This first step may take a few minutes.',syncing:'You can close this tab. Reopen Canvas Resync at any time to see progress.',done:'Canvas materials, timetable and study context have been refreshed. Check the log for the saved reports.',notices:'Check the progress log and SYNC_REPORT.html for inaccessible items, stale timetable data or extraction notices.',error:'The log has the details. Correct the issue, then enter a current credential to retry.'};
+const paceSeconds=()=>Math.round((0.6+Number($('pace').value)*0.1)*10)/10;
+const mins=seconds=>Math.max(1,Math.ceil(seconds/60));
+const clock=seconds=>new Date(Date.now()+seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+function plan(){
+ if(!models)return;
+ const model=$('full').checked?models.full:models.normal,delay=paceSeconds();
+ const seconds=model.requests*Math.max(delay,model.work_per_request)+model.local_seconds;
+ $('estimate').textContent='~'+mins(seconds)+' min';$('finish-clock').textContent='Around '+clock(seconds);
+ $('pace-caption').textContent='One request at a time · '+delay.toFixed(1)+' seconds between requests';
+ const basis=model.basis==='recent_runs'?'Based on '+model.samples+' recent run'+(model.samples===1?'':'s'):model.basis==='previous_archive'?'Based on your previous archive run':'An initial estimate; your first run will improve it';
+ $('estimate-note').textContent=basis+' · roughly '+mins(seconds*(1-model.spread))+'–'+mins(seconds*(1+model.spread))+' min. New material or Canvas pauses may add time.';
+ $('pace').setAttribute('aria-valuetext','About '+mins(seconds)+' minutes, '+delay.toFixed(1)+' seconds between requests');
+}
+function authHint(){const session=$('auth').value==='session';$('credential-label').textContent=session?'Your Canvas session cookie':'Your access token';$('credential-hint').textContent=session?'Use canvas_session only when your institution permits cookie-authenticated automation. This still calls the API.':'Use an access token approved by your institution. Never share it in issues or chat.';}
+$('auth').addEventListener('change',authHint);
+$('pace').addEventListener('input',plan);$('full').addEventListener('change',plan);
+async function status(){
+ try{
+  const response=await fetch('status',{cache:'no-store'});if(!response.ok)throw Error();const state=await response.json();
+  active=['preparing','syncing'].includes(state.phase);
+  models={normal:state.estimate,full:state.estimate_full};
+  if(!initialized){$('base-url').value=state.base_url||'';$('auth').value=state.auth||'token';authHint();}
+  if(!initialized||active){$('pace').value=Math.round((state.delay_seconds-0.6)*10);if(active)$('full').checked=state.full;initialized=true;}plan();
+  $('archive').textContent=state.archive;$('status-title').textContent=state.message;$('status-detail').textContent=details[state.phase]||'';
+  $('status').className='status'+(active?' working':'')+(state.phase==='error'?' error':'');
+  $('start').disabled=active||submitting;$('session').disabled=active;$('full').disabled=active;$('pace').disabled=active;$('connection').disabled=active;$('auth').disabled=active;$('base-url').disabled=active||state.configured;
+  $('start').textContent=active?'Resync running in background…':'Resync everything ↗';
+  if(active)$('session').value='';
+  if(state.log){const log=$('log'),follow=log.scrollHeight-log.scrollTop-log.clientHeight<50;log.textContent=state.log;if(follow)log.scrollTop=log.scrollHeight;}
+  if(state.phase==='error'||state.phase==='notices')$('progress').open=true;
+  const duration=state.started?Math.floor((state.finished||Date.now()/1000)-state.started):0;
+  $('elapsed').textContent=state.started?(duration<60?duration+' sec':Math.floor(duration/60)+' min '+duration%60+' sec'):'';
+  const m=state.metrics||{},waiting=Math.max(0,Math.ceil((m.waiting_until||0)-Date.now()/1000));
+  $('metrics').hidden=!state.started;$('requests').textContent=Number(m.requests||0).toLocaleString();
+  $('pauses').textContent=m.backoff_seconds?Math.ceil(m.backoff_seconds)+' sec':'None';
+  $('step').textContent=!active?(state.phase==='error'?'Stopped':'Finished'):state.phase==='preparing'?'Preparing':waiting?'Waiting '+waiting+' sec':m.stage==='context'?'Study context':'Checking Canvas';
+  $('run-eta').textContent=active?(state.phase==='preparing'?'First-time setup may add time.':m.stage==='context'?'Finishing local study context…':'Estimated '+mins(state.estimated_remaining_seconds)+' min remaining · around '+clock(state.estimated_remaining_seconds)):'';
+  const limited=Number(m.rate_limit_events||0),low=Number(m.low_budget_events||0),stopped=m.stopped_reason;
+  $('rate-warning').hidden=!(limited||low||stopped||state.timing_log_failed);
+  $('warning-title').textContent=stopped?'The sync stopped at a protective limit.':limited?'Canvas asked us to slow down.':low?'Canvas reported a low request budget.':'Timing history could not be saved.';
+  $('warning-detail').textContent=stopped?'Completed downloads are retained. Check the log and try again later.':limited?limited+' rate-limit response'+(limited===1?'':'s')+'. Automatic waiting takes priority over the finish estimate. This notice stays visible after the run.':low?'Request spacing was increased automatically. This notice stays visible after the run.':'Your sync result is unaffected; timing estimates may have less history.';
+  $('timing-folder').textContent=state.timing_folder?'Saved here: '+state.timing_folder:'';
+  document.title=active?'Resync running · Canvas':state.phase==='done'?'Resync complete · Canvas':'Canvas Resync';
+ }catch(e){$('status-title').textContent='This window is no longer connected.';$('status-detail').textContent='Reopen Canvas Resync from your archive to reconnect.';$('start').disabled=true;}
+}
+$('resync-form').addEventListener('submit',async event=>{
+ event.preventDefault();if(active||submitting)return;submitting=true;$('start').disabled=true;$('form-message').textContent='';
+ try{
+  const response=await fetch('start',{method:'POST',headers:{'Content-Type':'application/json','X-Canvas-Client':key},body:JSON.stringify({session:$('session').value.trim(),full:$('full').checked,delay_seconds:paceSeconds(),connection_type:$('connection').value,base_url:$('base-url').value.trim(),auth:$('auth').value})});
+  const result=await response.json();if(!response.ok)throw Error(result.error||'Could not start.');
+  $('session').value='';$('progress').open=true;$('status').scrollIntoView({behavior:'smooth',block:'center'});
+ }catch(error){$('form-message').textContent=error.message;}
+ finally{submitting=false;await status();}
+});
+status();setInterval(status,1500);
+</script></body></html>

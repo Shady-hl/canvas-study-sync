@@ -1,0 +1,3 @@
+# Local PDF extraction and timezone data; no AI API clients.
+pypdf>=6.21.1,<7.0
+tzdata>=2025.2
