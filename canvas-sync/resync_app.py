@@ -31,7 +31,7 @@ class SetupError(ValueError):
 
 def clean_environment():
     env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1', PYTHONUTF8='1')
-    for name in ('CANVAS_SESSION', 'CANVAS_TOKEN'):
+    for name in ('CANVAS_SESSION', 'CANVAS_TOKEN', 'CANVAS_OAUTH_SESSION', 'CANVAS_OAUTH_CONFIG'):
         env.pop(name, None)
     return env
 
@@ -119,6 +119,8 @@ class ResyncJob:
         self.finished = None
         self.exit_code = None
         self.cookie = ''
+        self.oauth_session = None
+        self.redactions = []
 
     def snapshot(self):
         with self.lock:
@@ -150,6 +152,8 @@ class ResyncJob:
             # The credential is never a command argument or a log message.
             if self.cookie:
                 line = line.replace(self.cookie, '[credential hidden]')
+            for value in self.redactions:
+                line = line.replace(value, '[credential hidden]')
             self.lines.append(line.rstrip()[:2000])
 
     def start(self, cookie, full=False, delay_seconds=None, connection_type='unknown', base_url=None, auth=None):
@@ -159,13 +163,21 @@ class ResyncJob:
         from canvas_sync import normalize_session
         from archive_config import canvas_origin
         auth = auth or self.auth
-        if auth not in {'token', 'session'}:
-            raise SetupError('Choose access token or session cookie.')
+        if auth not in {'token', 'session', 'oauth'}:
+            raise SetupError('Choose a configured authentication method.')
         try:
             base = canvas_origin(self.root, base_url or self.base_url)
         except Exception:
             raise SetupError('Enter the correct Canvas HTTPS origin. Existing archives must keep their original site.') from None
-        cookie = normalize_session(cookie)
+        if auth == 'oauth':
+            from canvas_oauth import Session, OAuthError
+            try:
+                session = Session.from_payload(cookie, base)
+            except OAuthError:
+                raise SetupError('Complete administrator-configured OAuth sign-in first.') from None
+        else:
+            session = None
+            cookie = normalize_session(cookie)
         if not cookie:
             raise ValueError('Enter your canvas_session value.')
         if not isinstance(full, bool):
@@ -180,6 +192,8 @@ class ResyncJob:
                 raise SetupError('For first setup, select an empty archive folder with --archive. Existing unrelated files were left untouched.')
             self.root.mkdir(parents=True, exist_ok=True)
             self.auth, self.base_url = auth, base
+            self.oauth_session = session
+            self.redactions = [session.access_token, session.refresh_token, session.config.client_secret] if session else []
             self.phase, self.message = 'preparing', 'Checking the local Python setup…'
             self.started, self.finished = time.time(), None
             self.exit_code, self.cookie = None, cookie
@@ -242,13 +256,16 @@ class ResyncJob:
     def command(self, command, credential=False):
         env = clean_environment()
         if credential:
-            env['CANVAS_SESSION' if self.auth == 'session' else 'CANVAS_TOKEN'] = self.cookie
+            name = 'CANVAS_OAUTH_SESSION' if self.auth == 'oauth' else 'CANVAS_SESSION' if self.auth == 'session' else 'CANVAS_TOKEN'
+            env[name] = self.cookie
             env['CANVAS_METRICS_SALT'] = self.history['resource_salt']
         with subprocess.Popen(command, cwd=TOOL, env=env, stdin=subprocess.DEVNULL,
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, encoding='utf-8', errors='replace',
                               **process_options()) as process:
             env.pop('CANVAS_SESSION', None)
+            env.pop('CANVAS_TOKEN', None)
+            env.pop('CANVAS_OAUTH_SESSION', None)
             for line in process.stdout:
                 if not self.progress_event(line):
                     self.log(line)
@@ -330,6 +347,8 @@ class ResyncJob:
         finally:
             with self.lock:
                 self.cookie = ''
+                self.oauth_session = None
+                self.redactions = []
                 finished = time.time()
                 summary = dict(self.metrics, phase=final_phase, exit_code=self.exit_code,
                                total_seconds=round(finished - self.started, 3),
@@ -369,12 +388,26 @@ class ResyncJob:
 class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, root, storage=None, base_url=None, auth='token'):
+    def __init__(self, root, storage=None, base_url=None, auth='oauth', oauth_config=None, development_auth=False):
         super().__init__(('127.0.0.1', 0), LocalHandler)
         self.key = secrets.token_urlsafe(32)
         self.origin = 'http://127.0.0.1:' + str(self.server_address[1])
         self.url = self.origin + '/' + self.key + '/'
         self.job = ResyncJob(root, storage, base_url, auth)
+        self.development_auth = development_auth
+        self.oauth_flow = None
+        self.oauth_problem = 'Administrator OAuth setup is required. See docs/OAUTH_SETUP.md; no shared key is bundled.'
+        if oauth_config:
+            from canvas_oauth import load_config, Flow, OAuthError
+            try:
+                config = load_config(oauth_config, excluded=(TOOL.parent, root))
+                if self.job.base_url and self.job.base_url.rstrip('/') != config.canvas_origin:
+                    raise OAuthError('The administrator configuration must match this archive’s Canvas origin.')
+                self.job.base_url = config.canvas_origin
+                self.oauth_flow = Flow(config)
+                self.oauth_problem = ''
+            except OAuthError as error:
+                self.oauth_problem = str(error)
         self.last_request = time.monotonic()
 
 
@@ -422,7 +455,8 @@ class LocalHandler(BaseHTTPRequestHandler):
             html = (TOOL / 'resync_ui.html').read_text(encoding='utf-8')
             self.reply(200, html.replace('__LOCAL_KEY__', self.server.key).encode('utf-8'), 'text/html; charset=utf-8')
         elif route == 'status':
-            self.reply(200, self.server.job.snapshot())
+            self.reply(200, dict(self.server.job.snapshot(), oauth_ready=bool(self.server.oauth_flow),
+                                oauth_problem=self.server.oauth_problem, development_auth=self.server.development_auth))
         else:
             self.reply(404, {'error': 'Not found.'})
 
@@ -430,7 +464,8 @@ class LocalHandler(BaseHTTPRequestHandler):
         if not self.allowed(write=True):
             self.reply(403, {'error': 'Reopen Canvas Resync to continue.'})
             return
-        if self.path != '/' + self.server.key + '/start':
+        route = self.path.removeprefix('/' + self.server.key + '/')
+        if route not in {'start', 'oauth/begin'}:
             self.reply(404, {'error': 'Not found.'})
             return
         try:
@@ -438,10 +473,32 @@ class LocalHandler(BaseHTTPRequestHandler):
             if not 0 < size <= 16384 or self.headers.get_content_type() != 'application/json':
                 raise ValueError('Invalid request.')
             body = json.loads(self.rfile.read(size))
+            if not isinstance(body, dict):
+                raise ValueError('Invalid request.')
+            if route == 'oauth/begin':
+                if self.server.job.snapshot()['phase'] in ACTIVE:
+                    raise RuntimeError
+                if not self.server.oauth_flow:
+                    raise SetupError(self.server.oauth_problem)
+                self.reply(200, {'authorization_url': self.server.oauth_flow.begin()})
+                return
+            if self.server.job.snapshot()['phase'] in ACTIVE:
+                raise RuntimeError
             cookie = body.get('session', '')
             if not isinstance(cookie, str):
                 raise ValueError('Invalid session value.')
-            self.server.job.start(cookie, body.get('full', False), body.get('delay_seconds'), body.get('connection_type', 'unknown'), body.get('base_url'), body.get('auth'))
+            auth = body.get('auth') or self.server.job.auth
+            if auth == 'oauth':
+                if not self.server.oauth_flow:
+                    raise SetupError(self.server.oauth_problem)
+                from canvas_oauth import OAuthError
+                try:
+                    cookie = self.server.oauth_flow.finish(cookie).payload()
+                except OAuthError as error:
+                    raise SetupError(str(error)) from None
+            elif not self.server.development_auth:
+                raise SetupError('Pasted tokens and cookies are disabled in the public launcher. Administrator-configured OAuth is required.')
+            self.server.job.start(cookie, body.get('full', False), body.get('delay_seconds'), body.get('connection_type', 'unknown'), body.get('base_url'), auth)
             body.clear()
             cookie = ''
             self.reply(202, {'started': True})
@@ -470,10 +527,10 @@ def running_url(folder, root):
         return None
 
 
-def serve(root, base_url=None, auth='token'):
+def serve(root, base_url=None, auth='oauth', oauth_config=None, development_auth=False):
     folder = instance_folder(root)
     try:
-        with instance_lock(folder), LocalServer(root, history_folder(root), base_url, auth) as server:
+        with instance_lock(folder), LocalServer(root, history_folder(root), base_url, auth, oauth_config, development_auth) as server:
             metadata = folder / 'window.json'
             # Contains only local window coordinates; never a Canvas credential.
             with metadata.open('w', encoding='utf-8') as handle:
@@ -495,7 +552,7 @@ def serve(root, base_url=None, auth='token'):
     return 0
 
 
-def launch(root, open_browser=True, base_url=None, auth='token'):
+def launch(root, open_browser=True, base_url=None, auth='oauth', oauth_config=None, development_auth=False):
     folder = instance_folder(root)
     url = find_window(root, folder)
     if not url:
@@ -503,6 +560,10 @@ def launch(root, open_browser=True, base_url=None, auth='token'):
         command += ['--auth', auth]
         if base_url:
             command += ['--base-url', base_url]
+        if oauth_config:
+            command += ['--oauth-config', str(oauth_config)]
+        if development_auth:
+            command += ['--development-auth']
         options = {'creationflags': subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {'start_new_session': True}
         # Startup diagnostics contain no credential; server request logging is off.
         with (folder / 'startup.log').open('a', encoding='utf-8') as startup:
@@ -532,13 +593,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', type=Path, default=default_archive(__file__))
     parser.add_argument('--base-url', help='Canvas HTTPS origin; can also be entered in the local window.')
-    parser.add_argument('--auth', choices=('token', 'session'), default='token')
+    parser.add_argument('--auth', choices=('oauth', 'token', 'session'), default='oauth')
+    parser.add_argument('--oauth-config', type=Path, default=os.environ.get('CANVAS_OAUTH_CONFIG'), help='Administrator-provisioned private config outside source/archives; never paste its secret into chat.')
+    parser.add_argument('--development-auth', action='store_true', help='Explicitly enable manual credentials for personal development/testing only; not onboarding for other users.')
     parser.add_argument('--launch', action='store_true')
     parser.add_argument('--serve', action='store_true')
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args(argv)
     root = args.archive.expanduser().resolve()
-    return serve(root, args.base_url, args.auth) if args.serve else launch(root, not args.no_browser, args.base_url, args.auth)
+    if args.auth != 'oauth' and not args.development_auth:
+        parser.error('Manual credentials require --development-auth and institutional permission; public use requires approved OAuth.')
+    return serve(root, args.base_url, args.auth, args.oauth_config, args.development_auth) if args.serve else launch(root, not args.no_browser, args.base_url, args.auth, args.oauth_config, args.development_auth)
 
 
 if __name__ == '__main__':

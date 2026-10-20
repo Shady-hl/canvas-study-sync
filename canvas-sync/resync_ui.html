@@ -21,20 +21,20 @@ main{padding-top:28px}.intro{padding:27px 0 25px}.intro h1{font-size:35px;letter
 </head>
 <body><main>
 <header class="top"><div class="brand">Canvas Resync <span aria-hidden="true">↻</span></div><div class="badge">Private · on this computer</div></header>
-<section class="intro"><h1>Your study folder, refreshed.</h1><p>Choose your pace and enter your Canvas credential. We’ll update your materials, timetable and study context in the background.</p></section>
+<section class="intro"><h1>Your study folder, refreshed.</h1><p>Use your institution’s configured Canvas sign-in, choose your pace, and refresh your study folder in the background.</p></section>
 <div class="grid">
 <section class="card overview"><p class="eyebrow">ONE RESYNC. THREE STEPS.</p><ol class="steps">
 <li><span class="num">1</span><div><h2>Get your Canvas materials</h2><p>Check all active courses and download new or changed accessible materials.</p></div></li>
 <li><span class="num">2</span><div><h2>Refresh your timetable</h2><p>Update your configured TimeEdit feed and keep its freshness visible.</p></div></li>
 <li><span class="num">3</span><div><h2>Prepare your study context</h2><p>Refresh AI_READY and the assistant snapshot. Reuse unchanged work to save time.</p></div></li>
 </ol><div class="path"><b>UPDATING THIS ARCHIVE</b><span id="archive">Connecting to your archive…</span></div></section>
-<section class="card form-card"><form id="resync-form"><label class="title" for="base-url">Your Canvas address</label><input class="setup-input" type="url" id="base-url" placeholder="https://canvas.your-school.edu" required autocomplete="off"><label class="setup-label" for="auth">Authentication</label><select class="setup-input" id="auth"><option value="token">Access token · institution-approved</option><option value="session">Session cookie · only if permitted</option></select><label class="title" id="credential-label" for="session">Your access token</label><p class="hint" id="credential-hint">Use an access token approved by your institution. Never share it in issues or chat.</p><div class="inputbox"><input type="password" id="session" name="canvas-credential" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your credential" required aria-describedby="privacy"><span class="private">Hidden</span></div>
+<section class="card form-card"><form id="resync-form"><label class="title" for="base-url">Your Canvas address</label><input class="setup-input" type="url" id="base-url" placeholder="https://canvas.your-school.edu" required autocomplete="off"><label class="setup-label" for="auth">Authentication</label><select class="setup-input" id="auth"><option value="oauth">Canvas sign-in · administrator configured</option><option value="token" hidden>Development only · access token</option><option value="session" hidden>Development only · session cookie</option></select><p class="hint" id="oauth-setup" role="status">Canvas sign-in needs administrator setup on this computer. Ask your institution about an approved integration.</p><div id="oauth-controls"><button id="oauth-begin" type="button">Start Canvas sign-in</button><p class="hint"><a id="oauth-link" target="_blank" rel="noopener noreferrer" hidden>Continue to Canvas →</a></p></div><label class="title" id="credential-label" for="session">Canvas authorization response</label><p class="hint" id="credential-hint">After approving access on Canvas, copy the address of its completion page here. Never paste a password or session cookie.</p><div class="inputbox"><input type="password" id="session" name="canvas-credential" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your credential" required aria-describedby="privacy"><span class="private">Hidden</span></div>
 <div class="pace"><label for="pace">When would you like it finished?</label><div class="estimate-row"><output class="estimate-value" id="estimate" for="pace">Estimating…</output><span class="estimate-clock" id="finish-clock"></span></div><input type="range" id="pace" min="0" max="44" step="1" value="14" aria-describedby="pace-caption estimate-note" aria-valuetext="Gentler pace"><div class="range-labels"><span>Sooner</span><span>More time · gentler pace</span></div><p class="pace-caption" id="pace-caption">One request at a time.</p><p class="estimate-note" id="estimate-note">Estimates improve with your run history. Canvas pauses and new downloads can take longer.</p></div>
 <label class="option"><input type="checkbox" id="full"><span>Verify every file and rebuild all study packs<small>Optional. Takes longer than a normal resync.</small></span></label><button id="start" type="submit">Resync everything <span aria-hidden="true">↗</span></button><div id="form-message" class="message" role="alert"></div><p class="privacy" id="privacy">Your credential is used for this run and kept out of saved logs. Missing PDF support is set up automatically.</p>
 <details class="timing-options"><summary>Timing history</summary><p>Each run saves private timing data on this computer, including request types, response times, retries and local processing. Cookies, private URLs and Wi-Fi names are excluded.</p><label for="connection">Connection for this run (optional)</label><select id="connection"><option value="unknown">Unspecified</option><option value="wifi">Wi-Fi</option><option value="ethernet">Ethernet</option><option value="hotspot">Mobile hotspot</option><option value="other">Other</option></select><p class="log-path" id="timing-folder"></p></details>
 </form></section>
 </div>
-<section id="status" class="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><div><h2 id="status-title">Ready when you are.</h2><p id="status-detail">Enter your Canvas address and approved credential to start.</p><p class="run-eta" id="run-eta"></p></div><span class="elapsed" id="elapsed"></span></section>
+<section id="status" class="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><div><h2 id="status-title">Ready when you are.</h2><p id="status-detail">Complete the configured Canvas sign-in to start.</p><p class="run-eta" id="run-eta"></p></div><span class="elapsed" id="elapsed"></span></section>
 <div class="metrics" id="metrics" hidden><div class="metric"><small>Canvas &amp; download requests</small><strong id="requests">0</strong></div><div class="metric"><small>Server pauses</small><strong id="pauses">None</strong></div><div class="metric"><small>Current step</small><strong class="metric-stage" id="step">Preparing</strong></div></div>
 <div class="warning" id="rate-warning" role="status" hidden><strong id="warning-title"></strong><span id="warning-detail"></span></div>
 <details id="progress"><summary>View progress</summary><pre id="log">The resync log will appear here.</pre></details>
@@ -42,8 +42,8 @@ main{padding-top:28px}.intro{padding:27px 0 25px}.intro h1{font-size:35px;letter
 </main>
 <script nonce="__LOCAL_KEY__">
 const key='__LOCAL_KEY__', $=id=>document.getElementById(id);
-let active=false, submitting=false, initialized=false, models=null;
-const details={ready:'Enter your Canvas address and approved credential to start.',preparing:'Preparing PDF and timezone support if needed. This first step may take a few minutes.',syncing:'You can close this tab. Reopen Canvas Resync at any time to see progress.',done:'Canvas materials, timetable and study context have been refreshed. Check the log for the saved reports.',notices:'Check the progress log and SYNC_REPORT.html for inaccessible items, stale timetable data or extraction notices.',error:'The log has the details. Correct the issue, then enter a current credential to retry.'};
+let active=false, submitting=false, initialized=false, models=null, oauthReady=false;
+const details={ready:'Complete the configured Canvas sign-in to start.',preparing:'Preparing PDF and timezone support if needed. This first step may take a few minutes.',syncing:'You can close this tab. Reopen Canvas Resync at any time to see progress.',done:'Canvas materials, timetable and study context have been refreshed. Check the log for the saved reports.',notices:'Check the progress log and SYNC_REPORT.html for inaccessible items, stale timetable data or extraction notices.',error:'The log has the details. Correct the issue, then start Canvas sign-in again to retry.'};
 const paceSeconds=()=>Math.round((0.6+Number($('pace').value)*0.1)*10)/10;
 const mins=seconds=>Math.max(1,Math.ceil(seconds/60));
 const clock=seconds=>new Date(Date.now()+seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -57,19 +57,26 @@ function plan(){
  $('estimate-note').textContent=basis+' · roughly '+mins(seconds*(1-model.spread))+'–'+mins(seconds*(1+model.spread))+' min. New material or Canvas pauses may add time.';
  $('pace').setAttribute('aria-valuetext','About '+mins(seconds)+' minutes, '+delay.toFixed(1)+' seconds between requests');
 }
-function authHint(){const session=$('auth').value==='session';$('credential-label').textContent=session?'Your Canvas session cookie':'Your access token';$('credential-hint').textContent=session?'Use canvas_session only when your institution permits cookie-authenticated automation. This still calls the API.':'Use an access token approved by your institution. Never share it in issues or chat.';}
+function authHint(){
+ const oauth=$('auth').value==='oauth',session=$('auth').value==='session';
+ $('oauth-controls').hidden=!oauth;$('oauth-setup').hidden=!oauth||oauthReady;
+ $('credential-label').textContent=oauth?'Canvas authorization response':session?'Development session cookie':'Development access token';
+ $('credential-hint').textContent=oauth?'Start sign-in, continue to Canvas, approve access, then paste the completion page address here. Never paste a password or session cookie.':'Personal development/testing only, where permitted. Do not ask other users to paste tokens or cookies.';
+ $('session').placeholder=oauth?'Completion page address from Canvas':'Development credential';
+ $('session').value='';
+}
 $('auth').addEventListener('change',authHint);
 $('pace').addEventListener('input',plan);$('full').addEventListener('change',plan);
 async function status(){
  try{
   const response=await fetch('status',{cache:'no-store'});if(!response.ok)throw Error();const state=await response.json();
-  active=['preparing','syncing'].includes(state.phase);
+  active=['preparing','syncing'].includes(state.phase);oauthReady=!!state.oauth_ready;$('oauth-setup').textContent=state.oauth_problem||'Canvas sign-in needs administrator setup.';$('oauth-setup').hidden=$('auth').value!=='oauth'||oauthReady;$('oauth-begin').disabled=active||!oauthReady;
   models={normal:state.estimate,full:state.estimate_full};
-  if(!initialized){$('base-url').value=state.base_url||'';$('auth').value=state.auth||'token';authHint();}
+  if(!initialized){$('base-url').value=state.base_url||'';$('auth').value=state.auth||'oauth';for(const option of $('auth').options){option.hidden=option.value!=='oauth'&&!state.development_auth;}authHint();}
   if(!initialized||active){$('pace').value=Math.round((state.delay_seconds-0.6)*10);if(active)$('full').checked=state.full;initialized=true;}plan();
   $('archive').textContent=state.archive;$('status-title').textContent=state.message;$('status-detail').textContent=details[state.phase]||'';
   $('status').className='status'+(active?' working':'')+(state.phase==='error'?' error':'');
-  $('start').disabled=active||submitting;$('session').disabled=active;$('full').disabled=active;$('pace').disabled=active;$('connection').disabled=active;$('auth').disabled=active;$('base-url').disabled=active||state.configured;
+  $('start').disabled=active||submitting||($('auth').value==='oauth'&&!oauthReady);$('session').disabled=active||($('auth').value==='oauth'&&!oauthReady);$('full').disabled=active;$('pace').disabled=active;$('connection').disabled=active;$('auth').disabled=active;$('base-url').disabled=active||state.configured||($('auth').value==='oauth'&&oauthReady);
   $('start').textContent=active?'Resync running in background…':'Resync everything ↗';
   if(active)$('session').value='';
   if(state.log){const log=$('log'),follow=log.scrollHeight-log.scrollTop-log.clientHeight<50;log.textContent=state.log;if(follow)log.scrollTop=log.scrollHeight;}
@@ -97,6 +104,16 @@ $('resync-form').addEventListener('submit',async event=>{
   $('session').value='';$('progress').open=true;$('status').scrollIntoView({behavior:'smooth',block:'center'});
  }catch(error){$('form-message').textContent=error.message;}
  finally{submitting=false;await status();}
+});
+$('oauth-begin').addEventListener('click',async()=>{
+ $('form-message').textContent='';$('oauth-link').hidden=true;$('session').value='';
+ try{
+  const response=await fetch('oauth/begin',{method:'POST',headers:{'Content-Type':'application/json','X-Canvas-Client':key},body:'{}'});
+  const result=await response.json();if(!response.ok)throw Error(result.error||'Could not start sign-in.');
+  const destination=new URL(result.authorization_url);
+  if(destination.origin!==new URL($('base-url').value).origin||destination.protocol!=='https:'||destination.pathname!=='/login/oauth2/auth')throw Error('The sign-in address did not match Canvas.');
+  $('oauth-link').href=destination.href;$('oauth-link').hidden=false;
+ }catch(error){$('form-message').textContent=error.message;}
 });
 status();setInterval(status,1500);
 </script></body></html>

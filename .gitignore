@@ -52,3 +52,8 @@ dist/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Never commit administrator OAuth configuration or sessions.
+oauth-private.json
+*oauth-config*.json
+.canvas-oauth*.json

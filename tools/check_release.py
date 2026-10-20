@@ -7,7 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_DIRS = {'.venv', '.venv-macos', '__pycache__', 'Canvas-Archive', 'AI_READY', 'Schedule', 'ASSISTANT_CONTEXT', 'Practice', 'History', 'Books'}
-FORBIDDEN_NAMES = {'.canvas-sync.json', '.canvas-sync.lock', '.timeedit-source.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'timings.json', 'window.json', 'SYNC_REPORT.json', 'SYNC_REPORT.html', 'LAST_RUN.md'}
+FORBIDDEN_NAMES = {'.canvas-sync.json', '.canvas-sync.lock', '.timeedit-source.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'timings.json', 'window.json', 'SYNC_REPORT.json', 'SYNC_REPORT.html', 'LAST_RUN.md', 'oauth-private.json'}
 FORBIDDEN_SUFFIXES = {'.pdf', '.ipynb', '.zip', '.ics', '.csv', '.tsv', '.sqlite', '.jsonl', '.log', '.har', '.pem', '.key', '.pyc'}
 PATTERNS = {
     'long credential-like literal': re.compile(r'(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{90,}(?![A-Za-z0-9_+/=-])'),
@@ -35,7 +35,7 @@ def main():
         if path.is_symlink():
             errors.append(f'{rel}: symlinks are not allowed in this release')
             continue
-        if any(part in FORBIDDEN_DIRS for part in rel.parts) or path.name in FORBIDDEN_NAMES or path.suffix.lower() in FORBIDDEN_SUFFIXES or path.name.startswith('.env'):
+        if any(part in FORBIDDEN_DIRS for part in rel.parts) or path.name in FORBIDDEN_NAMES or path.suffix.lower() in FORBIDDEN_SUFFIXES or path.name.startswith('.env') or 'oauth-config' in path.name.lower() or path.name.startswith('.canvas-oauth'):
             errors.append(f'{rel}: private/generated file type')
             continue
         if path.stat().st_size > 1_000_000:

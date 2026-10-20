@@ -4,6 +4,8 @@ Open Canvas Resync.app on Mac or OPEN_RESYNC.cmd on Windows. Move the finish-tim
 
 The estimate starts with the previous archive report when available. Later runs use up to five recent comparable runs, separate full verification from ordinary updates, and account for changes in the local source count. It does not perform a preliminary Canvas scan. It cannot know how much new material Canvas will return before the run.
 
+The normal public launcher requires administrator-configured OAuth. OAuth sign-in and refresh exchanges are not included in the Canvas/download GET-request counter; their credentials, codes and client secrets are never timing features.
+
 ## Local history for later analysis
 
 Expand **Timing history** in the window to see the storage folder and optionally label the connection as Wi-Fi, Ethernet or hotspot. This label is supplied by you; the app does not inspect Wi-Fi names, network addresses or location.

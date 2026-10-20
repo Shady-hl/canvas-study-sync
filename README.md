@@ -4,6 +4,8 @@ A local study archive for Canvas: incremental downloads, a background resync win
 
 **Experimental beta · macOS and Windows · noncommercial source available.** Independent community software, not affiliated with or endorsed by Instructure, Canvas, TimeEdit, or any educational institution. Use only where your institution permits this form of automation. Successful authentication does not establish permission.
 
+**Authentication setup is required. This is a developer preview, not a ready-to-use public Canvas integration.** The normal launcher requires administrator-configured OAuth and refuses pasted tokens/cookies. The documented native OAuth implementation is for trusted administrator/developer installations. There is no bundled developer key, hosted sign-in service, or claimed approval from any institution. Broad consumer deployment needs an institution-approved architecture that keeps the client secret out of distributed clients. See [OAuth setup and deployment limits](docs/OAUTH_SETUP.md).
+
 ## What it does
 
 - Checks your active student courses and downloads new, changed or locally missing accessible attachments. Unchanged attachments are reused; metadata and text still require requests.
@@ -19,9 +21,9 @@ Install **Python 3.11 or newer**, then download this source repository using **C
 
 1. On **Mac**, open `OPEN_RESYNC.command`. If Finder does not launch it, run `zsh ./OPEN_RESYNC.command` from the extracted folder.
 2. On **Windows**, open `OPEN_RESYNC.cmd`.
-3. The local window shows the destination archive, initially `Documents/Canvas-Archive`. Enter your institution's Canvas **HTTPS origin**, such as `https://canvas.your-school.edu`.
-4. Choose **Access token** and enter a token approved by your institution. A browser session cookie is an optional alternative only when the institution explicitly permits cookie-authenticated automation. It still uses the Canvas API; it is not a workaround for prohibited API access.
-5. Choose your pace and start the resync. PDF/timezone dependencies are prepared locally when needed.
+3. Without administrator configuration, the window explains the missing setup and cannot start a sync. Do not substitute a browser cookie or self-generated token to work around this.
+4. On a configured, approved installation, start Canvas sign-in, follow **Continue to Canvas**, and approve access on Canvas. For the documented native flow, paste the address of Canvas's completion page into the local authorization-response field. This code is short-lived and bound to that sign-in attempt.
+5. Choose your pace and start the resync. OAuth access is refreshed in memory before expiry. PDF/timezone dependencies are prepared locally when needed.
 
 Once running, you can close the tab or browser. Keep the computer on, awake and online. Reopen the launcher to return to progress. First-time setup, network changes, new material and Canvas pauses can extend the finish estimate.
 
@@ -45,20 +47,21 @@ Open `index.html` in your private archive, then `SYNC_REPORT.html`. Exit code `2
 
 The study exporter creates `AI_READY` and `ASSISTANT_CONTEXT/CURRENT.json`. Uploading context to an AI service is a separate action with separate institutional, privacy and copyright requirements. NotebookLM sources already uploaded are not updated by a local refresh.
 
-## Command-line use
+## Local export and development
 
 ```bash
-python3 -B canvas-sync/canvas_sync.py --base-url https://canvas.your-school.edu --auth token --output "/path/to/Canvas-Archive" --fast --delay 2
 python3 -B canvas-sync/study_update.py --archive "/path/to/Canvas-Archive"
 ```
 
-Use `python` on Windows. Credentials are requested at a hidden prompt; never put a token or cookie in command arguments, shell history, screenshots or issues. Existing archives remember their Canvas origin, not a login. `--fast` enables batching and local hash reuse; pass an explicit `--delay` to retain gentle pacing. See [usage and troubleshooting](docs/USAGE.md).
+Use `python` on Windows. This command refreshes existing local study output without contacting Canvas. Launching an approved OAuth installation is described in [OAuth setup](docs/OAUTH_SETUP.md). The sync CLI defaults to OAuth and requires an in-memory session supplied by the configured launcher. Existing archives remember their Canvas origin, not a login.
+
+Manual token/session CLI modes and the launcher's explicit `--development-auth` switch are retained for permitted personal development/testing. They are not public-user onboarding. Instructure distinguishes personal testing from applications used by others, which must obtain tokens through OAuth: [official guidance](https://developerdocs.instructure.com/services/canvas/oauth2/file.oauth.md#manual-token-generation). A session cookie still calls the API and does not establish institutional permission. See [usage and troubleshooting](docs/USAGE.md).
 
 ## Privacy and limits
 
 Course contents, reports, timetable settings and archive state are private local data. Keep them outside this repository. The optional portable study ZIP contains course material and other private data and is intended for your own devices, not public releases.
 
-The window uses loopback, a random local access key, host/origin checks and no external page assets. Canvas credentials are sent only to the configured exact HTTPS origin. They are held in process memory and child-process environment variables for the run; this does not protect against malware or another process with sufficient access to your computer.
+The window uses loopback, a random local access key, host/origin checks and no external page assets. Canvas credentials are sent only to the configured exact HTTPS origin. OAuth state is random, expires after ten minutes and is consumed once. Token exchanges refuse redirects, verify TLS and request only configured GET scopes. Sync requests use GET; OAuth token issuance/refresh uses POST. Runtime access/refresh tokens are held in process memory and the sync child process's environment for the run; dependency installers receive none. A provisioned administrator configuration contains a client secret and must be kept private outside source and archive folders. These controls do not protect against malware or another process with sufficient access to your computer.
 
 The window starts with 2 seconds between requests, adjustable from 0.6 to 5 seconds. Server backoff takes priority. Persistent throttling stops the entire run after six attempts for that request. The window additionally limits a run to 5,000 requests and four hours of starting requests; an in-flight download can complete later. These are traffic controls, not a promise against account restrictions.
 
