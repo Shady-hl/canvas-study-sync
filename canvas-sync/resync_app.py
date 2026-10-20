@@ -396,7 +396,7 @@ class LocalServer(ThreadingHTTPServer):
         self.job = ResyncJob(root, storage, base_url, auth)
         self.development_auth = development_auth
         self.oauth_flow = None
-        self.oauth_problem = 'Administrator OAuth setup is required. See docs/OAUTH_SETUP.md; no shared key is bundled.'
+        self.oauth_problem = 'Administrator setup is required. Ask your institution’s Canvas administrator about an approved sign-in integration.'
         if oauth_config:
             from canvas_oauth import load_config, Flow, OAuthError
             try:

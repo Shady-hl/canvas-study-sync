@@ -72,9 +72,9 @@ async function status(){
   const response=await fetch('status',{cache:'no-store'});if(!response.ok)throw Error();const state=await response.json();
   active=['preparing','syncing'].includes(state.phase);oauthReady=!!state.oauth_ready;$('oauth-setup').textContent=state.oauth_problem||'Canvas sign-in needs administrator setup.';$('oauth-setup').hidden=$('auth').value!=='oauth'||oauthReady;$('oauth-begin').disabled=active||!oauthReady;
   models={normal:state.estimate,full:state.estimate_full};
-  if(!initialized){$('base-url').value=state.base_url||'';$('auth').value=state.auth||'oauth';for(const option of $('auth').options){option.hidden=option.value!=='oauth'&&!state.development_auth;}authHint();}
+  if(!initialized){$('base-url').value=state.base_url||'';$('auth').value=state.auth||'oauth';for(const option of [...$('auth').options]){if(option.value!=='oauth'&&!state.development_auth)option.remove();else option.hidden=false;}authHint();}
   if(!initialized||active){$('pace').value=Math.round((state.delay_seconds-0.6)*10);if(active)$('full').checked=state.full;initialized=true;}plan();
-  $('archive').textContent=state.archive;$('status-title').textContent=state.message;$('status-detail').textContent=details[state.phase]||'';
+  $('archive').textContent=state.archive;$('status-title').textContent=state.phase==='ready'&&$('auth').value==='oauth'&&!oauthReady?'Administrator setup required.':state.message;$('status-detail').textContent=details[state.phase]||'';
   $('status').className='status'+(active?' working':'')+(state.phase==='error'?' error':'');
   $('start').disabled=active||submitting||($('auth').value==='oauth'&&!oauthReady);$('session').disabled=active||($('auth').value==='oauth'&&!oauthReady);$('full').disabled=active;$('pace').disabled=active;$('connection').disabled=active;$('auth').disabled=active;$('base-url').disabled=active||state.configured||($('auth').value==='oauth'&&oauthReady);
   $('start').textContent=active?'Resync running in background…':'Resync everything ↗';
