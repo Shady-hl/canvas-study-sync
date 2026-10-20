@@ -237,8 +237,8 @@ def main(argv=None):
     from canvas_sync import archive_lock
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', '--output', type=Path, default=default_archive(__file__))
-    parser.add_argument('--sync', action='store_true', help='Download Canvas first, with its hidden local login prompt.')
-    parser.add_argument('--auth', choices=('session', 'token'), default='token')
+    parser.add_argument('--sync', action='store_true', help='Download Canvas first, using the configured in-memory OAuth session.')
+    parser.add_argument('--auth', choices=('oauth', 'session', 'token'), default='oauth')
     parser.add_argument('--full', action='store_true', help='Verify every local source and rebuild all study output.')
     args, extra = parser.parse_known_args(argv)
     root = args.archive.expanduser().resolve()

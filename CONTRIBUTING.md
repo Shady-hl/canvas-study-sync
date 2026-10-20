@@ -6,4 +6,6 @@ Run `python -B -m unittest discover -s canvas-sync/tests` and `python -B tools/c
 
 Dependency or security reports should follow [SECURITY.md](SECURITY.md). Do not add automatic browser-cookie extraction, access-control bypasses, submissions, grade writes, secret storage in commands, external analytics, or background uploads. Unattended authentication requires an institution-approved method.
 
+Manual token/session modes are personal development/testing only. Public onboarding requires approved OAuth. Never distribute a developer-key client secret or treat the native administrator/developer flow as a complete consumer deployment. OAuth tests must cover origin binding, state expiry/replay, refresh and secret-free errors/logs.
+
 Unless a contribution explicitly states otherwise, submitting it for inclusion means offering it under the same repository license. Third-party code must retain its own required notices and compatible permissions. Do not contribute material you lack the right to share.

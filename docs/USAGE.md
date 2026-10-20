@@ -4,7 +4,7 @@
 
 The root launchers open a local browser window. No archive is needed beforehand. The destination defaults to `Documents/Canvas-Archive`; use `--archive` with an empty folder to change it. The first successful sync saves the Canvas origin in the archive state and generates standalone archive launchers. A folder from another Canvas origin must not be reused for a different site.
 
-Use an institution-approved token. The optional session mode requires permission for cookie-authenticated API automation. Disabled token creation does not establish permission to substitute a cookie. The tool does not extract browser credentials or modify account permissions.
+The normal launcher requires [administrator-configured OAuth](OAUTH_SETUP.md). Without it, the window explains the missing setup and refuses to sync. Broad public deployment still needs an institution-approved architecture that protects the developer-key secret; the repository is a developer preview. Manual token/session modes are only for permitted personal development/testing, not onboarding other users. Disabled token creation does not establish permission to substitute a cookie. The tool does not extract browser credentials or modify account permissions.
 
 The resync window prepares local PDF/timezone dependencies when needed. For manual export setup, run `canvas-sync/SETUP_THIS_PC.command` on Mac or `canvas-sync/SETUP_THIS_PC.cmd` on Windows. Keep environments local to the computer.
 
@@ -16,10 +16,10 @@ Failed downloads retain the completed prior version. Changed downloads preserve 
 
 ## Optional TimeEdit timetable
 
-Import a local CSV/iCalendar file or configure a private export link with the CLI:
+Import a local CSV/iCalendar file into an existing archive without contacting Canvas:
 
 ```bash
-python3 canvas-sync/canvas_sync.py --base-url https://canvas.your-school.edu --auth token --output "/path/to/Canvas-Archive" --timeedit-file "/path/to/schedule.ics" --timeedit-timezone Europe/Oslo --delay 2
+python3 canvas-sync/study_update.py --archive "/path/to/Canvas-Archive" --timeedit-file "/path/to/schedule.ics" --timeedit-timezone Europe/Oslo
 ```
 
 Use the correct IANA timezone for your institution. Existing TimeEdit parser support includes iCalendar and Norwegian/English CSV headings; other exports may need adaptation. Course-code matching is best effort; verify timetable mapping and assessment dates in the official system. Canvas credentials are not sent to TimeEdit. Feed URLs are private credentials in practice; do not share them.

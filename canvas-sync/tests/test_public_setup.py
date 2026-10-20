@@ -38,7 +38,7 @@ class PublicSetupTests(unittest.TestCase):
             root=Path(temp)/'not yet created'
             with patch.object(app,'launch',return_value=0) as launch:
                 self.assertEqual(app.main(['--archive',str(root),'--launch','--no-browser']),0)
-            launch.assert_called_once_with(root.resolve(),False,None,'token')
+            launch.assert_called_once_with(root.resolve(),False,None,'oauth',None,False)
             self.assertFalse(root.exists())
 
     def test_setup_preserves_unrelated_files_and_rejects_wrong_host(self):

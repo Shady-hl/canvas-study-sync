@@ -202,10 +202,19 @@ def request_pacing(delay, delay_range=None):
 class Canvas:
     def __init__(self, base, token, delay=0.6, auth="token", delay_range=None):
         self.base = validate_base(base)
-        if auth not in {"token", "session"}:
-            raise SyncError("Choose token or session authentication.")
+        if auth not in {"token", "session", "oauth"}:
+            raise SyncError("Choose OAuth, token or session authentication.")
         self.auth = auth
-        self.token = normalize_session(token) if auth == "session" else token
+        self.oauth = None
+        if auth == 'oauth':
+            from canvas_oauth import Session, OAuthError
+            try:
+                self.oauth = Session.from_payload(token, self.base)
+            except OAuthError as error:
+                raise AuthError(str(error)) from None
+            self.token = ''
+        else:
+            self.token = normalize_session(token) if auth == "session" else token
         self.delay, self.delay_range = request_pacing(delay, delay_range)
         self.next_request = 0.0
         self.request_count = 0
@@ -308,7 +317,15 @@ class Canvas:
                     if self.auth == "session":
                         headers["Cookie"] = "canvas_session=" + self.token
                     else:
-                        headers["Authorization"] = "Bearer " + self.token
+                        if self.oauth:
+                            from canvas_oauth import OAuthError
+                            try:
+                                bearer = self.oauth.bearer()
+                            except OAuthError as error:
+                                raise AuthError(str(error)) from None
+                        else:
+                            bearer = self.token
+                        headers["Authorization"] = "Bearer " + bearer
                 if api:
                     headers["Accept"] = "application/json"
                 self.check_budget()
@@ -949,7 +966,7 @@ def check_access(api, course_ids):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", help="Your institution's Canvas HTTPS origin. Reused from an existing archive when omitted.")
-    parser.add_argument("--auth", choices=["token", "session"], default="token", help="Token (default) or your own local Canvas browser session cookie.")
+    parser.add_argument("--auth", choices=["oauth", "token", "session"], default="oauth", help="OAuth (default); manual token/session modes are for permitted personal development/testing only.")
     from study_setup import default_archive
     parser.add_argument("--output", type=Path, default=default_archive(__file__))
     parser.add_argument("--course", action="append", type=int, help="Course ID; repeat for several. Default: active student enrollments.")
@@ -985,7 +1002,7 @@ def main():
         if args.fast and delay_range is None and args.delay is None:
             delay_range = (0.1, 0.25)
         delay, delay_range = request_pacing(args.delay if args.delay is not None else 0.6, delay_range)
-        credential = get_session(args.non_interactive) if args.auth == "session" else get_token(base, args.non_interactive)
+        credential = os.environ.pop('CANVAS_OAUTH_SESSION', '') if args.auth == 'oauth' else get_session(args.non_interactive) if args.auth == "session" else get_token(base, args.non_interactive)
         api = Canvas(base, credential, delay, args.auth, delay_range=delay_range)
         api.max_requests, api.max_seconds = args.max_requests, args.max_seconds
         if args.progress_events:

@@ -103,7 +103,7 @@ Lecture coding: "Read the relevant course notebook and the timetable source firs
 
 def start_guide(manifest, output_name, portable=False):
     text = '# Your study folder\n\n'
-    text += 'For a full background update, open **Canvas Resync.app** (macOS) or **OPEN_RESYNC.cmd** (Windows) at the archive root. Enter your approved credential in the private local window, choose **Resync everything**, and reopen the launcher whenever you want to check progress. Missing PDF/timezone support is handled automatically.\n\n'
+    text += 'For a full background update, open **Canvas Resync.app** (macOS) or **OPEN_RESYNC.cmd** (Windows) at the archive root. Complete administrator-configured Canvas sign-in in the private local window, choose **Resync everything**, and reopen the launcher whenever you want to check progress. Missing PDF/timezone support is handled automatically.\n\n'
     text += 'Use NotebookLM for subject learning and exam practice. Use the programming workspace in VS Code or Antigravity for notebooks, data and exercises.\n\n'
     text += '| Subject | NotebookLM: upload the Markdown files here | VS Code workspace |\n|---|---|---|\n'
     for subject, entry in manifest['subjects'].items():
@@ -245,9 +245,9 @@ def write_root_guide(root):
     write_utf8(path, marker + '\n# Start here\n\nRead [00_START_HERE.md](00_START_HERE.md).\n')
     name = output_directory(root).name
     text = marker + '\n# Your private study archive\n\n'
-    text += 'Open Canvas Resync.app on Mac or OPEN_RESYNC.cmd on Windows. Use an institution-approved credential and choose your pace. Closing the browser is fine once the run starts; keep the computer awake and online.\n\n'
+    text += 'Open Canvas Resync.app on Mac or OPEN_RESYNC.cmd on Windows. Use administrator-configured OAuth and choose your pace. Without an approved integration, the public launcher explains the missing setup and cannot sync. Closing the browser is fine once the run starts; keep the computer awake and online.\n\n'
     text += '| Task | macOS | Windows |\n|---|---|---|\n| Full resync window | OPEN_RESYNC.command | OPEN_RESYNC.cmd |\n| Canvas plus local study refresh | UPDATE_MATERIALS.command | UPDATE_MATERIALS.cmd |\n| Refresh existing materials | REFRESH_CONTEXT.command | REFRESH_CONTEXT.cmd |\n| Private portable archive | MAKE_PORTABLE.command | MAKE_PORTABLE.cmd |\n| Install local PDF/timezone support | SETUP_THIS_PC.command | SETUP_THIS_PC.cmd |\n\n'
-    text += 'For full local integrity verification, run `zsh ./REFRESH_CONTEXT.command --full` on Mac or `.\\REFRESH_CONTEXT.cmd --full` on Windows. Token access is preferred; cookie-authenticated automation requires institutional permission.\n\n'
+    text += 'For full local integrity verification, run `zsh ./REFRESH_CONTEXT.command --full` on Mac or `.\\REFRESH_CONTEXT.cmd --full` on Windows. Public sign-in requires approved OAuth. Manual token/session modes are only for permitted personal development/testing, not onboarding other users.\n\n'
     text += 'Read SYNC_REPORT.html for access gaps and notices. Use ' + name + '/NOTEBOOKLM for subject context and ' + name + '/VSCODE for coding workspaces. ASSISTANT_START_HERE.md points a local assistant to the latest committed study snapshot. Uploading material to an AI service is a separate action requiring the necessary rights.\n\n'
     text += 'Keep original edits in Practice or a separate copy. Generated files and downloaded originals can be replaced. This folder and portable study ZIPs contain private/copyrighted material; do not publish them as the source repository.\n'
     write_utf8(root / '00_START_HERE.md', text)

@@ -138,7 +138,7 @@ class LocalWindowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
-        self.server = app.LocalServer(self.root)
+        self.server = app.LocalServer(self.root, auth='session', development_auth=True)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -191,7 +191,47 @@ class LocalWindowTests(unittest.TestCase):
             with self.request('start', {'session': 'test-secret', 'full': True}) as response:
                 self.assertEqual(response.status, 202)
                 self.assertNotIn('test-secret', response.read().decode())
-            start.assert_called_once_with('test-secret', True, None, 'unknown', None, None)
+            start.assert_called_once_with('test-secret', True, None, 'unknown', None, 'session')
+
+    def test_public_window_rejects_manual_credentials_even_if_client_changes_auth(self):
+        self.server.development_auth = False
+        for auth in ('session', 'token'):
+            with self.subTest(auth=auth), patch.object(self.server.job, 'start') as start:
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    self.request('start', {'session': 'SYNTHETIC_PRIVATE', 'auth': auth})
+                self.assertEqual(error.exception.code, 400)
+                start.assert_not_called()
+
+    def test_unconfigured_oauth_window_explains_setup_and_never_requests_canvas(self):
+        with self.request('status') as response:
+            state = json.load(response)
+        self.assertFalse(state['oauth_ready'])
+        self.assertIn('Administrator', state['oauth_problem'])
+        with patch.object(self.server.job, 'start') as start:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.request('oauth/begin', {})
+            self.assertEqual(error.exception.code, 400)
+            start.assert_not_called()
+
+    def test_oauth_response_becomes_a_memory_only_worker_payload(self):
+        import canvas_oauth as oauth
+        from test_oauth import config_data, token_data
+        from urllib.parse import parse_qs, urlsplit, urlencode
+        self.server.development_auth = False
+        self.server.oauth_flow = oauth.Flow(oauth.Config.from_data(config_data()))
+        with self.request('oauth/begin', {}) as response:
+            url = json.load(response)['authorization_url']
+        state = parse_qs(urlsplit(url).query)['state'][0]
+        callback = 'https://canvas.example.edu/login/oauth2/auth?' + urlencode(dict(code='SYNTHETIC_CODE', state=state))
+        with patch.object(oauth, 'token_request', return_value=token_data()), patch.object(self.server.job, 'start') as start:
+            with self.request('start', {'auth': 'oauth', 'session': callback}) as response:
+                self.assertEqual(response.status, 202)
+                self.assertNotIn('SYNTHETIC', response.read().decode())
+            payload = json.loads(start.call_args.args[0])
+            self.assertEqual(payload['access_token'], 'SYNTHETIC_ACCESS')
+            self.assertEqual(start.call_args.args[-1], 'oauth')
+        with self.request('status') as response:
+            self.assertNotIn('SYNTHETIC', response.read().decode())
 
 
 class LauncherTests(unittest.TestCase):
