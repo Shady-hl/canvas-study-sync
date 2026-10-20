@@ -1,14 +1,27 @@
-# Canvas Study Sync
+# Canvas Study Sync — Canvas LMS Downloader for macOS and Windows
 
-A local study archive for Canvas: incremental downloads, a background resync window, timetable snapshots, and study context for NotebookLM or a local coding assistant.
+A Canvas LMS course downloader and local study archive for students who want course materials in their own workflow. Organize downloaded files into searchable study packs for NotebookLM, local editors and notes, or use an institution-approved Canvas connection for incremental background syncing.
+
+**[Student setup guide](docs/QUICKSTART.md) · [Download source ZIP](https://github.com/Shady-hl/canvas-study-sync/archive/refs/heads/main.zip) · [What works without a Canvas connection?](#choose-how-to-start)**
 
 **Experimental beta · macOS and Windows · noncommercial source available.** Independent community software, not affiliated with or endorsed by Instructure, Canvas, TimeEdit, or any educational institution. Use only where your institution permits this form of automation. Successful authentication does not establish permission.
 
-**Authentication setup is required. This is a developer preview, not a ready-to-use public Canvas integration.** The normal launcher requires administrator-configured OAuth and refuses pasted tokens/cookies. The documented native OAuth implementation is for trusted administrator/developer installations. There is no bundled developer key, hosted sign-in service, or claimed approval from any institution. Broad consumer deployment needs an institution-approved architecture that keeps the client secret out of distributed clients. See [OAuth setup and deployment limits](docs/OAUTH_SETUP.md).
+**Local-file study packs work without Canvas sign-in. Automatic Canvas syncing is a developer preview and requires institution-approved OAuth setup.** There is no bundled developer key, hosted sign-in service, or claimed approval from any institution. The documented native implementation is for trusted administrator/developer installations; a broad consumer integration still needs an approved architecture that protects the client secret. See [OAuth setup and deployment limits](docs/OAUTH_SETUP.md).
+
+## Choose how to start
+
+| Your situation | Start here |
+|---|---|
+| You have permitted course downloads and want study packs | Open the launcher, choose **Use downloaded files**, open the study folder, add files, then choose **Build study packs**. No Canvas login is needed. |
+| Your institution has configured an approved integration | Choose **Sync from Canvas**, complete Canvas sign-in, choose your pace, then start the background resync. |
+| You want automatic sync but your institution is not connected | Use downloaded files for now. The window includes a request you can copy, review and send to your Canvas administrator yourself. |
+
+This is intended for students across institutions. Automatic access depends on each institution's configuration and permission; it cannot work universally just because a student can log in to Canvas.
 
 ## What it does
 
-- Checks your active student courses and downloads new, changed or locally missing accessible attachments. Unchanged attachments are reused; metadata and text still require requests.
+- Builds local study packs from permitted PDFs, PowerPoint/Word files, text, notebooks and datasets, with no Canvas account connection. Files and generated packs remain on your computer.
+- With approved OAuth setup, checks your active student courses and downloads new, changed or locally missing accessible attachments. Unchanged attachments are reused; metadata and text still require requests.
 - Exports accessible pages, assignments, announcements, discussions, syllabus and quiz descriptions. It does not submit work, answer quizzes or change grades.
 - Offers a finish-time slider, one request at a time, server backoff, persistent throttling notices, and protective limits. Estimates use previous runs and are approximate.
 - Extracts local text into subject packs with source/page/cell references and a local searchable index. No AI service is called, no model is trained, and no source material is automatically uploaded anywhere.
@@ -21,11 +34,15 @@ Install **Python 3.11 or newer**, then download this source repository using **C
 
 1. On **Mac**, open `OPEN_RESYNC.command`. If Finder does not launch it, run `zsh ./OPEN_RESYNC.command` from the extracted folder.
 2. On **Windows**, open `OPEN_RESYNC.cmd`.
-3. Without administrator configuration, the window explains the missing setup and cannot start a sync. Do not substitute a browser cookie or self-generated token to work around this.
-4. On a configured, approved installation, start Canvas sign-in, follow **Continue to Canvas**, and approve access on Canvas. For the documented native flow, paste the address of Canvas's completion page into the local authorization-response field. This code is short-lived and bound to that sign-in attempt.
-5. Choose your pace and start the resync. OAuth access is refreshed in memory before expiry. PDF/timezone dependencies are prepared locally when needed.
+3. Choose **Use downloaded files**. Click **Open my study folder**, add permitted course files inside `My course--0/Files`, then click **Build study packs**. Existing archives keep their course folders. Open `00_START_HERE.md` in the study folder when finished.
+4. For automatic syncing on a configured, approved installation, choose **Sync from Canvas**, start sign-in, follow **Continue to Canvas**, and approve access on Canvas. Paste the address of Canvas's native completion page into the local response field. This short-lived response is bound to that sign-in attempt; it is not a session cookie.
+5. Choose your pace and start the resync. PDF/timezone dependencies are prepared automatically when a build or sync first needs them. Python 3.14 is supported; you do not need Python 3.9.
 
 Once running, you can close the tab or browser. Keep the computer on, awake and online. Reopen the launcher to return to progress. First-time setup, network changes, new material and Canvas pauses can extend the finish estimate.
+
+Local-file mode makes no Canvas requests. A previously configured TimeEdit feed can still refresh, and first-time dependency setup needs internet access. Original course files are not uploaded. Scanned PDFs and visual material may need the original; review extraction coverage.
+
+The default destination is `Documents/Canvas-Archive`, separate from the source ZIP. To group additional local courses, create folders such as `Economics--1/Files` and `Programming--2/Files`. Preserve the distinct numeric endings. The [student guide](docs/QUICKSTART.md) explains where to find each workflow's output.
 
 To choose a different empty archive folder:
 
@@ -66,6 +83,12 @@ The window uses loopback, a random local access key, host/origin checks and no e
 The window starts with 2 seconds between requests, adjustable from 0.6 to 5 seconds. Server backoff takes priority. Persistent throttling stops the entire run after six attempts for that request. The window additionally limits a run to 5,000 requests and four hours of starting requests; an in-flight download can complete later. These are traffic controls, not a promise against account restrictions.
 
 See [SECURITY.md](SECURITY.md), [responsible use](USE_POLICY.md), and [timing-log schema](canvas-sync/TIMING_LOGS.md).
+
+## Looking for a Canvas scraper or Canvas backup tool?
+
+Canvas Study Sync uses Canvas API endpoints for approved syncing, and local file extraction for study packs. It can help download Canvas course files and maintain an offline study archive. It is not a complete account backup: locked items, inaccessible resources and unsupported content can be missing. Previously downloaded material is retained when remote material disappears.
+
+Searching for a “Canvas scraper” does not change the access requirements. The public launcher uses configured OAuth, respects server backoff and does not bypass login or course permissions. Using a session cookie still calls the API. The tool does not provide an automatic Notion integration, submit work, or send course content to an AI service.
 
 ## Development
 

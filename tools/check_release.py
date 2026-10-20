@@ -7,7 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_DIRS = {'.venv', '.venv-macos', '__pycache__', 'Canvas-Archive', 'AI_READY', 'Schedule', 'ASSISTANT_CONTEXT', 'Practice', 'History', 'Books'}
-FORBIDDEN_NAMES = {'.canvas-sync.json', '.canvas-sync.lock', '.timeedit-source.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'timings.json', 'window.json', 'SYNC_REPORT.json', 'SYNC_REPORT.html', 'LAST_RUN.md', 'oauth-private.json'}
+FORBIDDEN_NAMES = {'.canvas-sync.json', '.canvas-study-local.json', '.canvas-sync.lock', '.timeedit-source.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'timings.json', 'window.json', 'SYNC_REPORT.json', 'SYNC_REPORT.html', 'LAST_RUN.md', 'oauth-private.json'}
 FORBIDDEN_SUFFIXES = {'.pdf', '.ipynb', '.zip', '.ics', '.csv', '.tsv', '.sqlite', '.jsonl', '.log', '.har', '.pem', '.key', '.pyc'}
 PATTERNS = {
     'long credential-like literal': re.compile(r'(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{90,}(?![A-Za-z0-9_+/=-])'),

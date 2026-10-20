@@ -23,6 +23,7 @@ from resync_estimates import (load_history, save_history, estimate, duration,
 TOOL = Path(__file__).resolve().parent
 ACTIVE = {'preparing', 'syncing'}
 DEP_CHECK = "import pypdf; from zoneinfo import ZoneInfo; ZoneInfo('Europe/Oslo')"
+LOCAL_MARKER = '.canvas-study-local.json'
 
 
 class SetupError(ValueError):
@@ -38,6 +39,21 @@ def clean_environment():
 
 def process_options():
     return {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
+
+
+def managed_archive(root):
+    return any((root / name).is_file() and not (root / name).is_symlink()
+               for name in ('.canvas-sync.json', LOCAL_MARKER))
+
+
+def open_study_folder(root):
+    """Open only this launcher's fixed archive, never a client-supplied path."""
+    if os.name == 'nt':
+        os.startfile(str(root))
+    else:
+        subprocess.run(['/usr/bin/open' if sys.platform == 'darwin' else 'xdg-open', str(root)],
+                       env=clean_environment(), check=True, stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
 
 
 def instance_folder(root):
@@ -121,8 +137,14 @@ class ResyncJob:
         self.cookie = ''
         self.oauth_session = None
         self.redactions = []
+        self.operation = 'sync'
 
     def snapshot(self):
+        from ai_export import output_directory, ExportError
+        try:
+            study_output = output_directory(self.root).name
+        except (OSError, ValueError, ExportError):
+            study_output = 'AI_READY'
         with self.lock:
             model = self.models[self.full]
             remaining = duration(model, self.delay)
@@ -136,6 +158,8 @@ class ResyncJob:
             return {'phase': self.phase, 'message': self.message,
                     'archive': str(self.root), 'started': self.started,
                     'base_url': self.base_url, 'auth': self.auth,
+                    'operation': self.operation, 'local_ready': managed_archive(self.root),
+                    'study_output': study_output,
                     'configured': (self.root / '.canvas-sync.json').is_file(),
                     'finished': self.finished, 'exit_code': self.exit_code,
                     'delay_seconds': self.delay, 'full': self.full, 'metrics': dict(self.metrics),
@@ -188,10 +212,14 @@ class ResyncJob:
         with self.lock:
             if self.phase in ACTIVE:
                 raise RuntimeError('A resync is already running in this window.')
-            if not (self.root / '.canvas-sync.json').is_file() and self.root.is_dir() and any(self.root.iterdir()):
+            fresh = not managed_archive(self.root)
+            if fresh and self.root.is_dir() and any(self.root.iterdir()):
                 raise SetupError('For first setup, select an empty archive folder with --archive. Existing unrelated files were left untouched.')
             self.root.mkdir(parents=True, exist_ok=True)
+            if fresh:
+                self.prepare_output()
             self.auth, self.base_url = auth, base
+            self.operation = 'sync'
             self.oauth_session = session
             self.redactions = [session.access_token, session.refresh_token, session.config.client_secret] if session else []
             self.phase, self.message = 'preparing', 'Checking the local Python setup…'
@@ -219,6 +247,48 @@ class ResyncJob:
                  'tool_fingerprint': fingerprint.hexdigest(),
                  'max_requests': 5000, 'max_seconds': 14400}, self.root)
         self.remember()
+        threading.Thread(target=self.run, args=(full,), daemon=True).start()
+
+    def prepare_local(self):
+        with self.lock:
+            if self.phase in ACTIVE:
+                raise RuntimeError
+            if not managed_archive(self.root):
+                if self.root.exists() and (not self.root.is_dir() or any(self.root.iterdir())):
+                    raise SetupError('This folder already contains unrelated files. Choose a new empty archive with --archive; nothing was changed.')
+                self.root.mkdir(parents=True, exist_ok=True)
+                with (self.root / LOCAL_MARKER).open('x', encoding='utf-8') as handle:
+                    json.dump({'format': 1, 'purpose': 'local-study'}, handle)
+                self.prepare_output()
+                (self.root / 'My course--0' / 'Files').mkdir(parents=True)
+            return self.root
+
+    def prepare_output(self):
+        with (self.root / 'AI_CONFIG.json').open('x', encoding='utf-8') as handle:
+            json.dump({'output_folder': 'AI_READY', 'simple_layout': True}, handle)
+
+    def start_local(self, full=False):
+        """Use the existing export pipeline without passing a Canvas credential."""
+        from ai_export import discover
+        with self.lock:
+            if self.phase in ACTIVE:
+                raise RuntimeError
+            if not isinstance(full, bool):
+                raise SetupError('Choose whether to rebuild every study pack.')
+            if not managed_archive(self.root):
+                raise SetupError('Open the study folder first, then add your permitted course files.')
+            if not discover(self.root, []):
+                raise SetupError('Add course files to My course--0/Files, or an existing course folder, then build your study packs.')
+            self.operation = 'local'
+            self.phase, self.message = 'preparing', 'Preparing study packs from your local files…'
+            self.started, self.finished = time.time(), None
+            self.exit_code, self.cookie, self.oauth_session = None, '', None
+            self.redactions = []
+            self.full, self.metrics = full, {'stage': 'context', 'requests': 0}
+            self.context_started = self.sync_started = None
+            self.lines.clear()
+            self.timing = TimingLog(self.storage, self.history['resource_salt'],
+                {'operation': 'local', 'full': full, 'auth_mode': 'none'}, self.root)
         threading.Thread(target=self.run, args=(full,), daemon=True).start()
 
     def remember(self):
@@ -305,21 +375,30 @@ class ResyncJob:
         final_phase, final_message = 'error', 'Setup or resync failed. Check the progress log.'
         try:
             python = self.python_with_dependencies()
+            local = self.operation == 'local'
             with self.lock:
-                self.phase, self.message = 'syncing', 'Updating Canvas, timetable and study context…'
-            self.log(f'One request at a time, at least {self.delay:g}s between request starts. Canvas backoff always takes priority.')
+                self.phase, self.message = 'syncing', 'Preparing local study packs…' if local else 'Updating Canvas, timetable and study context…'
+            if local:
+                self.context_started = time.time()
+                self.log('Building from files already on this computer. No Canvas connection or Canvas credential is used.')
+                self.log('A previously configured TimeEdit feed may still refresh. Source files are not uploaded.')
+            else:
+                self.log(f'One request at a time, at least {self.delay:g}s between request starts. Canvas backoff always takes priority.')
             self.log('The sync continues if you close this tab. Reopen Canvas Resync to return.')
             command = [str(python), '-B', '-u', '-X', 'utf8', str(TOOL / 'study_update.py'),
-                       '--archive', str(self.root), '--base-url', self.base_url, '--sync', '--auth', self.auth, '--delay', str(self.delay),
-                       '--progress-events', '--max-requests', '5000', '--max-seconds', '14400']
+                       '--archive', str(self.root)]
+            if not local:
+                command += ['--base-url', self.base_url, '--sync', '--auth', self.auth, '--delay', str(self.delay),
+                            '--progress-events', '--max-requests', '5000', '--max-seconds', '14400']
             if full:
-                command += ['--full', '--verify-local']
+                command += ['--full'] + ([] if local else ['--verify-local'])
             self.sync_started = time.time()
-            code = self.command(command, credential=True)
+            code = self.command(command, credential=not local)
             with self.lock:
                 self.exit_code = code
                 if code == 0:
-                    final_phase, final_message = 'done', 'Resync complete. Your study context is up to date.'
+                    final_phase = 'done'
+                    final_message = 'Study packs ready. Canvas was not contacted.' if local else 'Resync complete. Your study context is up to date.'
                 elif code == 2:
                     final_phase, final_message = 'notices', 'Finished with notices. Some sources need review.'
                 else:
@@ -465,7 +544,7 @@ class LocalHandler(BaseHTTPRequestHandler):
             self.reply(403, {'error': 'Reopen Canvas Resync to continue.'})
             return
         route = self.path.removeprefix('/' + self.server.key + '/')
-        if route not in {'start', 'oauth/begin'}:
+        if route not in {'start', 'oauth/begin', 'local/open', 'local/start'}:
             self.reply(404, {'error': 'Not found.'})
             return
         try:
@@ -475,6 +554,19 @@ class LocalHandler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             if not isinstance(body, dict):
                 raise ValueError('Invalid request.')
+            if route == 'local/open':
+                root = self.server.job.prepare_local()
+                try:
+                    open_study_folder(root)
+                    opened = True
+                except (OSError, subprocess.SubprocessError):
+                    opened = False
+                self.reply(200, {'opened': opened, 'archive': str(root)})
+                return
+            if route == 'local/start':
+                self.server.job.start_local(body.get('full', False))
+                self.reply(202, {'started': True})
+                return
             if route == 'oauth/begin':
                 if self.server.job.snapshot()['phase'] in ACTIVE:
                     raise RuntimeError
