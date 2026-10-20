@@ -23,6 +23,7 @@ def run():
         p.error('This optional helper is for macOS only. Manual syncing works on other systems.')
     if args.hours < 1:
         p.error('Use an interval of at least one hour; six hours is the default.')
+    # Reject unapproved installs before touching platform-specific account details.
     if args.action == 'install' and not args.development_auth:
         p.error('This manual-token scheduler requires --development-auth and institutional permission; it is not public-user OAuth onboarding.')
     target = Path.home() / 'Library' / 'LaunchAgents' / (LABEL + '.plist')
