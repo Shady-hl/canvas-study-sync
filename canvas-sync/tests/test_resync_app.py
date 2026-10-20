@@ -366,6 +366,21 @@ print('Local fixture complete',flush=True)
             study_setup.write_shortcuts(root)
             self.assertEqual(study_setup.default_archive(root / 'canvas-sync/resync_app.py'), root.resolve())
 
+    def test_failed_first_sync_can_retry_after_the_app_created_output_settings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'fresh archive'
+            tool = Path(temp) / 'tool'
+            tool.mkdir()
+            (tool / 'study_update.py').write_text('raise SystemExit(1)')
+            job = app.ResyncJob(root, base_url='https://canvas.example.edu', auth='token')
+            with patch.object(app, 'TOOL', tool), patch.object(job, 'python_with_dependencies', return_value=Path(sys.executable)):
+                for _ in range(2):
+                    job.start('SYNTHETIC_TOKEN')
+                    result = ResyncJobTests.wait(self, job)
+                    self.assertEqual(result['phase'], 'error')
+            self.assertTrue((root / app.LOCAL_MARKER).is_file())
+            self.assertEqual(json.loads((root / 'AI_CONFIG.json').read_text())['output_folder'], 'AI_READY')
+
     def test_real_local_build_produces_packs_and_a_relocatable_portable_archive(self):
         import zipfile
         with tempfile.TemporaryDirectory() as temp:

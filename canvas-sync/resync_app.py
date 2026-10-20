@@ -217,6 +217,8 @@ class ResyncJob:
                 raise SetupError('For first setup, select an empty archive folder with --archive. Existing unrelated files were left untouched.')
             self.root.mkdir(parents=True, exist_ok=True)
             if fresh:
+                with (self.root / LOCAL_MARKER).open('x', encoding='utf-8') as handle:
+                    json.dump({'format': 1, 'purpose': 'local-study'}, handle)
                 self.prepare_output()
             self.auth, self.base_url = auth, base
             self.operation = 'sync'
