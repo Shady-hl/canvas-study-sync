@@ -204,7 +204,7 @@ class LauncherTests(unittest.TestCase):
                 with patch.dict(os.environ, TMPDIR='/a-finder-temp'):
                     second = app.instance_folder(root)
             self.assertEqual(first, second)
-            self.assertIn('Library/Caches/CanvasStudySync', str(first))
+            self.assertEqual(first.parent, Path(temp) / 'Library' / 'Caches' / 'CanvasStudySync')
 
     def test_app_and_window_files_are_excluded_from_teaching_sources(self):
         with tempfile.TemporaryDirectory() as temp:
