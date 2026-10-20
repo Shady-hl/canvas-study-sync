@@ -2,7 +2,7 @@
 
 ## Current status
 
-The beta implements Canvas's documented native authorization-code flow, one-time state validation, token exchange and in-memory refresh. It has synthetic security tests. It has not been exercised against an administrator-approved live Canvas integration. The normal launcher is disabled until private administrator configuration is supplied.
+The beta implements Canvas's documented native authorization-code flow, one-time state validation, token exchange and in-memory refresh. It has synthetic security tests. It has not been exercised against an administrator-approved live Canvas integration. Automatic Canvas syncing is unavailable until private administrator configuration is supplied. The window also offers local-file study packs without Canvas sign-in; see the [student quickstart](QUICKSTART.md).
 
 This direct native flow is for a trusted administrator/developer installation on a machine they control. **Do not distribute a developer-key client secret to students, embed it in an installer, or commit it.** This repository does not include a hosted token-exchange service or a general consumer deployment. For a broadly distributed application, the institution must approve and operate a suitable secret exchange/provisioning architecture, followed by a deployment security review. Adding the code alone does not activate an approved integration.
 

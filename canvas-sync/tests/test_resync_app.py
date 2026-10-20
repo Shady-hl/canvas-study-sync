@@ -213,6 +213,22 @@ class LocalWindowTests(unittest.TestCase):
             self.assertEqual(error.exception.code, 400)
             start.assert_not_called()
 
+    def test_local_folder_and_build_routes_work_without_oauth_and_keep_csrf_checks(self):
+        self.server.development_auth = False
+        with patch.object(app, 'open_study_folder') as opened:
+            with self.request('local/open', {}) as response:
+                self.assertTrue(json.load(response)['opened'])
+            opened.assert_called_once_with(self.root)
+        self.assertTrue((self.root / 'My course--0/Files').is_dir())
+        with patch.object(self.server.job, 'start_local') as start:
+            with self.request('local/start', {'full': True}) as response:
+                self.assertEqual(response.status, 202)
+            start.assert_called_once_with(True)
+        for route in ('local/open', 'local/start'):
+            with self.subTest(route=route), self.assertRaises(urllib.error.HTTPError) as error:
+                self.request(route, {}, origin='https://outside.invalid')
+            self.assertEqual(error.exception.code, 403)
+
     def test_oauth_response_becomes_a_memory_only_worker_payload(self):
         import canvas_oauth as oauth
         from test_oauth import config_data, token_data
@@ -285,6 +301,108 @@ class LauncherTests(unittest.TestCase):
                     native_open.assert_called_once()
                 else:
                     browser.assert_called_once()
+
+
+class LocalStudyTests(unittest.TestCase):
+    def test_preparing_does_not_adopt_unrelated_folders(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'private files'
+            root.mkdir()
+            note = root / 'keep.txt'
+            note.write_text('Private notes')
+            job = app.ResyncJob(root)
+            with self.assertRaises(app.SetupError):
+                job.prepare_local()
+            self.assertEqual(note.read_text(), 'Private notes')
+            self.assertFalse((root / app.LOCAL_MARKER).exists())
+            with self.assertRaises(app.SetupError):
+                job.start_local()
+
+    def test_empty_local_archive_gives_a_useful_error_without_starting_setup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            job = app.ResyncJob(Path(temp) / 'archive')
+            job.prepare_local()
+            with patch.object(job, 'python_with_dependencies') as setup:
+                with self.assertRaisesRegex(app.SetupError, 'Add course files'):
+                    job.start_local()
+                setup.assert_not_called()
+            self.assertEqual(job.phase, 'ready')
+
+    def test_local_worker_receives_no_canvas_credentials_and_does_not_affect_sync_estimates(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'archive'
+            tool = Path(temp) / 'tool'
+            storage = Path(temp) / 'timings'
+            tool.mkdir()
+            storage.mkdir()
+            job = app.ResyncJob(root, storage)
+            job.prepare_local()
+            source = root / 'My course--0/Files/lecture.txt'
+            source.write_text('Synthetic lecture notes')
+            (tool / 'study_update.py').write_text('''import os,sys
+assert '--sync' not in sys.argv and '--auth' not in sys.argv and '--base-url' not in sys.argv
+assert '--full' in sys.argv and '--verify-local' not in sys.argv
+assert all(name not in os.environ for name in ('CANVAS_TOKEN','CANVAS_SESSION','CANVAS_OAUTH_SESSION','CANVAS_OAUTH_CONFIG'))
+print('Local fixture complete',flush=True)
+''')
+            with patch.object(app, 'TOOL', tool), patch.object(job, 'python_with_dependencies', return_value=Path(sys.executable)), \
+                 patch.dict(os.environ, CANVAS_TOKEN='SYNTHETIC_PRIVATE', CANVAS_SESSION='SYNTHETIC_PRIVATE'):
+                job.start_local(full=True)
+                result = ResyncJobTests.wait(self, job)
+            self.assertEqual(result['phase'], 'done', result['log'])
+            self.assertEqual(result['operation'], 'local')
+            self.assertEqual(result['metrics']['requests'], 0)
+            self.assertEqual(job.history['runs'], [])
+            self.assertEqual(source.read_text(), 'Synthetic lecture notes')
+            self.assertNotIn('SYNTHETIC_PRIVATE', json.dumps(result))
+            rows = [json.loads(line) for line in next((storage / 'runs').glob('*.jsonl')).read_text().splitlines()]
+            self.assertEqual(rows[0]['auth_mode'], 'none')
+            self.assertEqual(rows[-1]['phase'], 'done')
+
+    def test_local_archive_launchers_reopen_the_same_folder(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'moved archive'
+            app.ResyncJob(root).prepare_local()
+            study_setup.write_shortcuts(root)
+            self.assertEqual(study_setup.default_archive(root / 'canvas-sync/resync_app.py'), root.resolve())
+
+    def test_failed_first_sync_can_retry_after_the_app_created_output_settings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'fresh archive'
+            tool = Path(temp) / 'tool'
+            tool.mkdir()
+            (tool / 'study_update.py').write_text('raise SystemExit(1)')
+            job = app.ResyncJob(root, base_url='https://canvas.example.edu', auth='token')
+            with patch.object(app, 'TOOL', tool), patch.object(job, 'python_with_dependencies', return_value=Path(sys.executable)):
+                for _ in range(2):
+                    job.start('SYNTHETIC_TOKEN')
+                    result = ResyncJobTests.wait(self, job)
+                    self.assertEqual(result['phase'], 'error')
+            self.assertTrue((root / app.LOCAL_MARKER).is_file())
+            self.assertEqual(json.loads((root / 'AI_CONFIG.json').read_text())['output_folder'], 'AI_READY')
+
+    def test_real_local_build_produces_packs_and_a_relocatable_portable_archive(self):
+        import zipfile
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve() / 'local study archive'
+            job = app.ResyncJob(root)
+            job.prepare_local()
+            source = root / 'My course--0/Files/lecture.txt'
+            source.write_text('Synthetic economics lecture. Opportunity cost is the best alternative forgone.')
+            original = source.read_bytes()
+            with patch.object(job, 'python_with_dependencies', return_value=Path(sys.executable)):
+                job.start_local()
+                result = ResyncJobTests.wait(self, job)
+            self.assertEqual(result['phase'], 'done', result['log'])
+            self.assertEqual(source.read_bytes(), original)
+            self.assertEqual(json.loads((root / 'ASSISTANT_CONTEXT/CURRENT.json').read_text())['source_count'], 1)
+            self.assertTrue(list((root / 'AI_READY/NOTEBOOKLM').rglob('*.md')))
+            self.assertTrue((root / '00_START_HERE.md').is_file())
+            self.assertFalse((root / '.canvas-sync.json').exists())
+            package = study_setup.make_portable(root)
+            with zipfile.ZipFile(package) as archive:
+                self.assertIn('Canvas-Archive/' + app.LOCAL_MARKER, archive.namelist())
+                self.assertNotIn('Canvas-Archive/.canvas-sync.json', archive.namelist())
 
 
 if __name__ == '__main__':

@@ -71,7 +71,7 @@ def write_mac_app(root):
 def default_archive(script_path=None):
     location = Path(script_path or __file__).resolve().parent
     for parent in (location, *location.parents):
-        if (parent / '.canvas-sync.json').is_file():
+        if any((parent / name).is_file() for name in ('.canvas-sync.json', '.canvas-study-local.json')):
             return parent
     return Path.home() / 'Documents' / 'Canvas-Archive'
 
@@ -170,7 +170,7 @@ def write_portable(stage, manifest):
             if digest_file(path) != source['sha256']:
                 raise ExportError('A source changed while preparing the portable archive. Previous export retained.')
             add(path, source['path'])
-        for filename in ('.canvas-sync.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'index.html', 'SYNC_REPORT.html', 'SYNC_REPORT.json'):
+        for filename in ('.canvas-sync.json', '.canvas-study-local.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'index.html', 'SYNC_REPORT.html', 'SYNC_REPORT.json'):
             add(root / filename, filename)
         for filename in ('timeedit.csv', 'timeedit.ics', 'timeedit-live.ics', 'schedule.json'):
             add(root / 'Schedule' / filename, 'Schedule/' + filename)
@@ -245,10 +245,11 @@ def write_root_guide(root):
     write_utf8(path, marker + '\n# Start here\n\nRead [00_START_HERE.md](00_START_HERE.md).\n')
     name = output_directory(root).name
     text = marker + '\n# Your private study archive\n\n'
-    text += 'Open Canvas Resync.app on Mac or OPEN_RESYNC.cmd on Windows. Use administrator-configured OAuth and choose your pace. Without an approved integration, the public launcher explains the missing setup and cannot sync. Closing the browser is fine once the run starts; keep the computer awake and online.\n\n'
+    text += 'Open Canvas Resync.app on Mac or OPEN_RESYNC.cmd on Windows. Choose Use downloaded files to build study packs from local materials without a Canvas login. Choose Sync from Canvas only with an approved, configured integration. The window includes setup help and a request you can copy and send to your administrator yourself. Closing the browser is fine once a run starts; keep the computer awake. First-time setup, syncing and any saved timetable feed need a connection.\n\n'
     text += '| Task | macOS | Windows |\n|---|---|---|\n| Full resync window | OPEN_RESYNC.command | OPEN_RESYNC.cmd |\n| Canvas plus local study refresh | UPDATE_MATERIALS.command | UPDATE_MATERIALS.cmd |\n| Refresh existing materials | REFRESH_CONTEXT.command | REFRESH_CONTEXT.cmd |\n| Private portable archive | MAKE_PORTABLE.command | MAKE_PORTABLE.cmd |\n| Install local PDF/timezone support | SETUP_THIS_PC.command | SETUP_THIS_PC.cmd |\n\n'
     text += 'For full local integrity verification, run `zsh ./REFRESH_CONTEXT.command --full` on Mac or `.\\REFRESH_CONTEXT.cmd --full` on Windows. Public sign-in requires approved OAuth. Manual token/session modes are only for permitted personal development/testing, not onboarding other users.\n\n'
-    text += 'Read SYNC_REPORT.html for access gaps and notices. Use ' + name + '/NOTEBOOKLM for subject context and ' + name + '/VSCODE for coding workspaces. ASSISTANT_START_HERE.md points a local assistant to the latest committed study snapshot. Uploading material to an AI service is a separate action requiring the necessary rights.\n\n'
+    text += 'For local files, use the existing course folders or add distinct folders such as Economics--1/Files. Preserve each course\'s numeric ending. Local builds do not check Canvas for new material.\n\n'
+    text += 'After a Canvas sync, read SYNC_REPORT.html for access gaps and notices. For every build, review extraction coverage. Use ' + name + '/NOTEBOOKLM for subject context and ' + name + '/VSCODE for coding workspaces. ASSISTANT_START_HERE.md points a local assistant to the latest committed study snapshot. Uploading material to an AI service is a separate action requiring the necessary rights.\n\n'
     text += 'Keep original edits in Practice or a separate copy. Generated files and downloaded originals can be replaced. This folder and portable study ZIPs contain private/copyrighted material; do not publish them as the source repository.\n'
     write_utf8(root / '00_START_HERE.md', text)
     write_shortcuts(root)

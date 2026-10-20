@@ -11,6 +11,11 @@ py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&
 if not errorlevel 1 (
   goto run_launcher
 )
+python -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
+if not errorlevel 1 (
+  set "CANVAS_PY=python"
+  goto run_python
+)
 for %%V in (315 314 313 312 311 310 39) do (
   if exist "%LOCALAPPDATA%\Programs\Python\Python%%V\python.exe" (
     "%LOCALAPPDATA%\Programs\Python\Python%%V\python.exe" -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
@@ -25,7 +30,9 @@ if exist "%CANVAS_RUNTIME%" (
   set "CANVAS_PY=%CANVAS_RUNTIME%"
   goto run_python
 )
-echo Python was not found. Install Python 3 with the Python launcher, then install requirements-ai.txt.
+echo Python 3.11 or newer is required. Python 3.14 is supported.
+echo Install Python from https://www.python.org/downloads/windows/ then reopen OPEN_RESYNC.cmd.
+echo The app prepares PDF support automatically when you start your first build or sync.
 exit /b 1
 
 :run_launcher
