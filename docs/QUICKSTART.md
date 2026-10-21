@@ -2,6 +2,10 @@
 
 Canvas Study Sync is for students who want a private local study archive, searchable course extracts and packs for their preferred study tools. You can start with files you are permitted to download. Automatic Canvas syncing additionally requires an institution-approved integration; your normal Canvas login alone does not configure one.
 
+**Want an AI to walk you through it?** Copy the single prompt in [Set up with AI](../AI_SETUP.md). The assistant can guide installation and explain the output without seeing any credential or private course material.
+
+Once Python and the source download are set up, the usual path is **open the launcher → complete your configured sign-in → Resync everything → open the output**. The app downloads and prepares the packs in one run; you do not need a separate export command. A permitted personal-testing session window accepts its session value locally. The public sign-in path requires the approved OAuth setup described below.
+
 ## 1. Download and open
 
 1. Install **Python 3.11 or newer** from [python.org](https://www.python.org/downloads/) if it is not already installed. **Python 3.14 works.** On Windows, include the Python launcher when offered. You do not need Anaconda or an exact Python 3.9 installation.

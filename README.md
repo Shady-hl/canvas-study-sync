@@ -2,7 +2,9 @@
 
 A Canvas LMS course downloader and local study archive for students who want course materials in their own workflow. Organize downloaded files into searchable study packs for NotebookLM, local editors and notes, or use an institution-approved Canvas connection for incremental background syncing.
 
-**[Student setup guide](docs/QUICKSTART.md) · [Download source ZIP](https://github.com/Shady-hl/canvas-study-sync/archive/refs/heads/main.zip) · [What works without a Canvas connection?](#choose-how-to-start)**
+**[Set up with AI](AI_SETUP.md) · [Student setup guide](docs/QUICKSTART.md) · [Download source ZIP](https://github.com/Shady-hl/canvas-study-sync/archive/refs/heads/main.zip)**
+
+**New to this?** Open [Set up with AI](AI_SETUP.md), copy its one prompt into your preferred assistant, and follow one step at a time. You do not need to upload the code or your course archive. Keep passwords, session cookies and authorization responses in the local app, out of the AI chat.
 
 **Experimental beta · macOS and Windows · noncommercial source available.** Independent community software, not affiliated with or endorsed by Instructure, Canvas, TimeEdit, or any educational institution. Use only where your institution permits this form of automation. Successful authentication does not establish permission.
 
