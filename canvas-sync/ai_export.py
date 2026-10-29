@@ -35,6 +35,7 @@ GENERATED = {'AI', 'AI_READY', 'ASSISTANT_CONTEXT', 'Schedule', 'History', 'Prac
 GENERATED.add('Canvas Resync.app')
 DERIVED.add('ASSISTANT_START_HERE.md')
 DERIVED.add('OPEN_RESYNC.cmd')
+DERIVED.update({'ED_CONFIG.json', 'ED_SYNC_REPORT.json', 'ED_SYNC_REPORT.html'})
 DERIVED.update(name[:-4] + '.command' for name in tuple(DERIVED) if name.endswith('.cmd'))
 SECTIONS = {'Files', 'Pages', 'Assignments', 'Announcements', 'Discussions', 'Quiz-info', 'Syllabus'}
 INSTRUCTIONS = '''# How to use this material

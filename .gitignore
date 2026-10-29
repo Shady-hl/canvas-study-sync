@@ -58,3 +58,7 @@ Desktop.ini
 oauth-private.json
 *oauth-config*.json
 .canvas-oauth*.json
+
+# Ed mapping and imported discussions are private archive data.
+ED_CONFIG.json
+ED_SYNC_REPORT.*

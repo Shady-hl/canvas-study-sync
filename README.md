@@ -1,98 +1,79 @@
-# Canvas Study Sync — Canvas LMS Downloader for macOS and Windows
+# Canvas Study Sync
 
-A Canvas LMS course downloader and local study archive for students who want course materials in their own workflow. Organize downloaded files into searchable study packs for NotebookLM, local editors and notes, or use an institution-approved Canvas connection for incremental background syncing.
+**Turn your course files and Ed discussions into searchable, source-linked study packs.**
 
-**[Set up with AI](AI_SETUP.md) · [Student setup guide](docs/QUICKSTART.md) · [Download source ZIP](https://github.com/Shady-hl/canvas-study-sync/archive/refs/heads/main.zip)**
+Keep a local course archive, prepare subject packs for NotebookLM or your editor, and see where each extract came from. Your materials stay on your computer until you choose to share them.
 
-**New to this?** Open [Set up with AI](AI_SETUP.md), copy its one prompt into your preferred assistant, and follow one step at a time. You do not need to upload the code or your course archive. Keep passwords, session cookies and authorization responses in the local app, out of the AI chat.
+[**Start here**](docs/QUICKSTART.md) · [Set up with an AI assistant](AI_SETUP.md) · [Download source ZIP](https://github.com/Shady-hl/canvas-study-sync/archive/refs/heads/main.zip)
 
-**Experimental beta · macOS and Windows · noncommercial source available.** Independent community software, not affiliated with or endorsed by Instructure, Canvas, TimeEdit, or any educational institution. Use only where your institution permits this form of automation. Successful authentication does not establish permission.
+Experimental beta · Python 3.11+ · macOS and Windows · noncommercial source available
 
-**Local-file study packs work without Canvas sign-in. Automatic Canvas syncing is a developer preview and requires institution-approved OAuth setup.** There is no bundled developer key, hosted sign-in service, or claimed approval from any institution. The documented native implementation is for trusted administrator/developer installations; a broad consumer integration still needs an approved architecture that protects the client secret. See [OAuth setup and deployment limits](docs/OAUTH_SETUP.md).
+## Choose your workflow
 
-## Choose how to start
-
-| Your situation | Start here |
+| What you have | What to do |
 |---|---|
-| You have permitted course downloads and want study packs | Open the launcher, choose **Use downloaded files**, open the study folder, add files, then choose **Build study packs**. No Canvas login is needed. |
-| Your institution has configured an approved integration | Choose **Sync from Canvas**, complete Canvas sign-in, choose your pace, then start the background resync. |
-| You want automatic sync but your institution is not connected | Use downloaded files for now. The window includes a request you can copy, review and send to your Canvas administrator yourself. |
+| Downloaded slides, PDFs, notes or notebooks | Choose **Use downloaded files**, add your materials and **Build study packs**. No Canvas login needed. |
+| An Ed Discussion course | Open **Import Ed Discussion** under downloaded files. Add your own Ed API token and optionally remember it on this computer. [Ed setup →](docs/ED_DISCUSSION.md) |
+| An institution-configured Canvas integration | Choose **Sync from Canvas** for incremental downloads through approved OAuth. [Connection setup →](docs/OAUTH_SETUP.md) |
 
-This is intended for students across institutions. Automatic access depends on each institution's configuration and permission; it cannot work universally just because a student can log in to Canvas.
+Automatic Canvas syncing requires institution-approved configuration. There is no bundled developer key or universal sign-in service. Local files and Ed imports work independently of Canvas OAuth.
 
-## What it does
+## What you get
 
-- Builds local study packs from permitted PDFs, PowerPoint/Word files, text, notebooks and datasets, with no Canvas account connection. Files and generated packs remain on your computer.
-- With approved OAuth setup, checks your active student courses and downloads new, changed or locally missing accessible attachments. Unchanged attachments are reused; metadata and text still require requests.
-- Exports accessible pages, assignments, announcements, discussions, syllabus and quiz descriptions. It does not submit work, answer quizzes or change grades.
-- Offers a finish-time slider, one request at a time, server backoff, persistent throttling notices, and protective limits. Estimates use previous runs and are approximate.
-- Extracts local text into subject packs with source/page/cell references and a local searchable index. No AI service is called, no model is trained, and no source material is automatically uploaded anywhere.
-- Optionally refreshes a TimeEdit feed or imports a local timetable snapshot.
-- Retains private, structured timing logs for later analysis, without credentials, raw resource paths, private URLs, response bodies or Wi-Fi identifiers.
+- **Study packs by subject:** extracted text from PDFs, slides, Word documents, notebooks, code and datasets, with source/page/cell references and a local search index.
+- **Ed posts and replies:** accessible threads, answers, nested comments, maths, code and supported attachments. Staff and anonymous posts are labelled; reports show gaps and unmatched courses.
+- **A useful local archive:** original material alongside generated packs. With configured Canvas access, new or changed attachments are downloaded and unchanged attachments reused.
+- **Honest refresh reports:** Canvas, Ed and local study-context freshness are recorded separately. Failed refreshes retain the previous committed assistant snapshot.
+- **Optional timetable context:** a TimeEdit feed or local timetable snapshot.
+- **Portable study copies:** move your archive between your own computers. Saved Ed credentials stay in the operating system's secure store and never enter the portable ZIP.
+
+The app does not call an AI service, generate answers, train a model, or automatically upload your course material. Source extraction can miss scanned text, diagrams and visual equations; coverage reports point you back to the originals.
 
 ## First run
 
-Install **Python 3.11 or newer**, then download this source repository using **Code → Download ZIP** and extract it. Keep the extracted source outside your private study archive.
+1. Install **Python 3.11 or newer**. Download and extract the source ZIP outside your private course archive.
+2. Open **OPEN_RESYNC.command** on Mac or **OPEN_RESYNC.cmd** on Windows. If Finder does not launch it, run `zsh ./OPEN_RESYNC.command` in the extracted folder.
+3. Choose **Use downloaded files → Open my study folder**. Add permitted materials inside **My course--0 / Files**, then click **Build study packs**.
+4. Open **00_START_HERE.md** in the study folder when the build finishes.
 
-1. On **Mac**, open `OPEN_RESYNC.command`. If Finder does not launch it, run `zsh ./OPEN_RESYNC.command` from the extracted folder.
-2. On **Windows**, open `OPEN_RESYNC.cmd`.
-3. Choose **Use downloaded files**. Click **Open my study folder**, add permitted course files inside `My course--0/Files`, then click **Build study packs**. Existing archives keep their course folders. Open `00_START_HERE.md` in the study folder when finished.
-4. For automatic syncing on a configured, approved installation, choose **Sync from Canvas**, start sign-in, follow **Continue to Canvas**, and approve access on Canvas. Paste the address of Canvas's native completion page into the local response field. This short-lived response is bound to that sign-in attempt; it is not a session cookie.
-5. Choose your pace and start the resync. PDF/timezone dependencies are prepared automatically when a build or sync first needs them. Python 3.14 is supported; you do not need Python 3.9.
+The default study folder is **Documents/Canvas-Archive**, separate from this source repository. Add courses with distinct numeric folder endings, such as `Economics--1/Files`. For Ed, put the exact course code in the folder name, such as `ECON101--1/Files`.
 
-Once running, you can close the tab or browser. Keep the computer on, awake and online. Reopen the launcher to return to progress. First-time setup, network changes, new material and Canvas pauses can extend the finish estimate.
+PDF, timezone and secure-storage dependencies are prepared automatically on the first run that needs them. Keep your computer awake. Closing the browser tab does not stop an active run; reopen the launcher to return to progress.
 
-Local-file mode makes no Canvas requests. A previously configured TimeEdit feed can still refresh, and first-time dependency setup needs internet access. Original course files are not uploaded. Scanned PDFs and visual material may need the original; review extraction coverage.
+### Remembering Ed sign-in
 
-The default destination is `Documents/Canvas-Archive`, separate from the source ZIP. To group additional local courses, create folders such as `Economics--1/Files` and `Programming--2/Files`. Preserve the distinct numeric endings. The [student guide](docs/QUICKSTART.md) explains where to find each workflow's output.
+Select the correct region, paste the token into the **local app's hidden field**, and check **Remember on this computer**. A token is saved only after an authenticated import. Later, leave the field blank to reuse it. Use **Forget saved Ed token** to remove the selected region's saved credential.
 
-To choose a different empty archive folder:
+Storage uses **macOS Keychain**, **Windows Credential Manager**, or **Linux Secret Service**. There is no plaintext fallback. Each person and computer supplies its own token. See [Ed setup and troubleshooting](docs/ED_DISCUSSION.md).
 
-```bash
-# Mac / Linux
-python3 -B canvas-sync/resync_app.py --archive "/path/to/Canvas-Archive" --launch
-```
+## Where to find the result
 
-```powershell
-# Windows
-python -B .\canvas-sync\resync_app.py --archive "D:\Study\Canvas-Archive" --launch
-```
+| Output | Use |
+|---|---|
+| `00_START_HERE.md` | Guide to the private archive and current outputs |
+| `AI_READY/NOTEBOOKLM` | Subject packs and instructions for choosing sources |
+| `AI_READY/VSCODE` | Subject workspaces for a local editor |
+| `ASSISTANT_CONTEXT/CURRENT.json` | Latest committed context and source freshness |
+| `ED_SYNC_REPORT.html` | Latest Ed attempt, coverage and course matches |
+| `SYNC_REPORT.html` | Canvas downloads and access notices, after a Canvas sync |
 
-After the first successful study build, the archive gets its own launchers and tool copy. On Mac, `Canvas Resync.app` is generated inside that private archive. Source ZIPs are not signed or notarized application installers.
+Originals remain available for checking diagrams, tables and extraction gaps. Keep your own edits in **Practice** or a separate copy: generated packs are refreshed. Updating local packs does not update sources you already uploaded to NotebookLM.
 
-## Reports and coverage
+## Is this the right tool?
 
-Open `index.html` in your private archive, then `SYNC_REPORT.html`. Exit code `2` means the run finished with notices. Locked/unpublished items and denied listings remain gaps; no scan can certify that every course resource was discovered. Previously downloaded material is retained when remote material disappears or becomes inaccessible.
+Choose this project if you want **local study packs with traceable sources and Ed discussions**. It is a source-based beta, not a packaged desktop installer.
 
-The study exporter creates `AI_READY` and `ASSISTANT_CONTEXT/CURRENT.json`. Uploading context to an AI service is a separate action with separate institutional, privacy and copyright requirements. NotebookLM sources already uploaded are not updated by a local refresh.
+For a browser-based Canvas archive using your existing login, consider [jasp-nerd's Canvas Course Downloader](https://github.com/jasp-nerd/canvas-course-downloader). For a packaged desktop downloader with broader sync, conversion and Panopto features, compare [BrkBuilds' Canvas Downloader](https://github.com/BrkBuilds/Canvas-Downloader). Check each project's current requirements and institutional compatibility. [CanvasAPI](https://github.com/ucfopen/canvasapi) is a developer library for building Canvas tools.
 
-## Local export and development
+## Privacy and access
 
-```bash
-python3 -B canvas-sync/study_update.py --archive "/path/to/Canvas-Archive"
-```
+Keep course material, reports, timetable links and archive state private. A portable study ZIP contains your materials and is intended for your own devices; it is not a public software release. Passwords and tokens belong in the local app, never an AI chat or GitHub issue.
 
-Use `python` on Windows. This command refreshes existing local study output without contacting Canvas. Launching an approved OAuth installation is described in [OAuth setup](docs/OAUTH_SETUP.md). The sync CLI defaults to OAuth and requires an in-memory session supplied by the configured launcher. Existing archives remember their Canvas origin, not a login.
+The local window binds to loopback and uses a random access key, host/origin checks and no external page assets. API credentials are restricted to their configured HTTPS service. Dependency installers receive no Canvas or Ed credentials. Ed uses GET requests, regional API tokens and no Canvas credentials; saved tokens use the OS secure store. Canvas sync uses configured OAuth; token issuance and refresh use POST. More detail: [SECURITY.md](SECURITY.md).
 
-Manual token/session CLI modes and the launcher's explicit `--development-auth` switch are retained for permitted personal development/testing. They are not public-user onboarding. Instructure distinguishes personal testing from applications used by others, which must obtain tokens through OAuth: [official guidance](https://developerdocs.instructure.com/services/canvas/oauth2/file.oauth.md#manual-token-generation). A session cookie still calls the API and does not establish institutional permission. See [usage and troubleshooting](docs/USAGE.md).
+Use only materials and access methods your institution permits. Independent community software, not affiliated with or endorsed by Instructure, Canvas, Ed, TimeEdit or any educational institution. Ed's API is beta and may change. Inaccessible, deleted, unpublished and unsupported resources can remain gaps; no export certifies complete coverage. See [usage](docs/USAGE.md) and [supported scope](USE_POLICY.md).
 
-## Privacy and limits
-
-Course contents, reports, timetable settings and archive state are private local data. Keep them outside this repository. The optional portable study ZIP contains course material and other private data and is intended for your own devices, not public releases.
-
-The window uses loopback, a random local access key, host/origin checks and no external page assets. Canvas credentials are sent only to the configured exact HTTPS origin. OAuth state is random, expires after ten minutes and is consumed once. Token exchanges refuse redirects, verify TLS and request only configured GET scopes. Sync requests use GET; OAuth token issuance/refresh uses POST. Runtime access/refresh tokens are held in process memory and the sync child process's environment for the run; dependency installers receive none. A provisioned administrator configuration contains a client secret and must be kept private outside source and archive folders. These controls do not protect against malware or another process with sufficient access to your computer.
-
-The window starts with 2 seconds between requests, adjustable from 0.6 to 5 seconds. Server backoff takes priority. Persistent throttling stops the entire run after six attempts for that request. The window additionally limits a run to 5,000 requests and four hours of starting requests; an in-flight download can complete later. These are traffic controls, not a promise against account restrictions.
-
-See [SECURITY.md](SECURITY.md), [responsible use](USE_POLICY.md), and [timing-log schema](canvas-sync/TIMING_LOGS.md).
-
-## Looking for a Canvas scraper or Canvas backup tool?
-
-Canvas Study Sync uses Canvas API endpoints for approved syncing, and local file extraction for study packs. It can help download Canvas course files and maintain an offline study archive. It is not a complete account backup: locked items, inaccessible resources and unsupported content can be missing. Previously downloaded material is retained when remote material disappears.
-
-Searching for a “Canvas scraper” does not change the access requirements. The public launcher uses configured OAuth, respects server backoff and does not bypass login or course permissions. Using a session cookie still calls the API. The tool does not provide an automatic Notion integration, submit work, or send course content to an AI service.
-
-## Development
+## Development and feedback
 
 ```bash
 python3 -m pip install -r canvas-sync/requirements-ai.txt
@@ -100,10 +81,10 @@ python3 -B -m unittest discover -s canvas-sync/tests
 python3 -B tools/check_release.py
 ```
 
-Tests use synthetic course data and mocked network responses; no Canvas account is required. CI covers Mac, Windows and Linux on Python 3.11 and 3.14. Some platform-specific tests are skipped elsewhere. Tests do not establish compatibility with every institution's Canvas configuration.
+Use `python` on Windows. Tests use synthetic data and mocked service responses. CI covers Python 3.11 and 3.14 on Mac, Windows and Linux; that does not establish compatibility with every institution.
+
+Useful contributions include clearer setup instructions, extraction improvements, and reproducible import bugs. [Report an issue](https://github.com/Shady-hl/canvas-study-sync/issues/new/choose) with your operating system and a redacted error. Never attach tokens or private course exports. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE). This is **source available, not OSI open source**: the code may be used, modified and redistributed for permitted noncommercial purposes under the license. Commercial purposes outside its grants are not licensed. The standard text expressly permits certain organizations, including educational institutions, regardless of funding; read the full terms rather than treating this as a ban on every payment in every context.
-
-[USE_POLICY.md](USE_POLICY.md) states the project's responsible-use expectations and supported scope. It does not rewrite the license or guarantee that misuse can be prevented. No license or disclaimer guarantees freedom from legal consequences. The code license grants no rights to course materials, student data, third-party services or trademarks.
+[PolyForm Noncommercial 1.0.0](LICENSE): **source available, not OSI open source**. Read the license for its permitted uses and grants. The code license grants no rights to course materials, student data, third-party services or trademarks. [USE_POLICY.md](USE_POLICY.md) describes the supported scope without rewriting the license.

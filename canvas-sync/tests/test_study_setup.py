@@ -135,6 +135,22 @@ class StudySetupTests(unittest.TestCase):
                 with self.subTest(path=path), self.assertRaises(canvas_sync.SyncError):
                     archive.local_path(path)
 
+    def test_portable_keeps_ed_reports_mapping_and_raw_xml(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            course = self.fixture(root)
+            folder = course / 'Discussions/Ed-eu-123'
+            (folder / '.raw').mkdir(parents=True)
+            (folder / 'thread-1.html').write_text('<h1>Ed question</h1><p>Staff reply</p>')
+            (folder / '.raw/thread-1.json').write_text('{"posts":[]}')
+            for name in ('ED_SYNC_REPORT.json', 'ED_CONFIG.json'):
+                (root / name).write_text('{}')
+            self.build(root)
+            archive_path = study.make_portable(root)
+            with zipfile.ZipFile(archive_path) as archive:
+                self.assertIn('Canvas-Archive/ED_SYNC_REPORT.json', archive.namelist())
+                self.assertIn('Canvas-Archive/ED_CONFIG.json', archive.namelist())
+                self.assertIn('Canvas-Archive/' + course.name + '/Discussions/Ed-eu-123/.raw/thread-1.json', archive.namelist())
 
 if __name__ == '__main__':
     unittest.main()

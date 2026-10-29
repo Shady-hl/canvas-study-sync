@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A local, on-demand Canvas resync window. Credentials stay in memory."""
+"""A local, on-demand Canvas resync window. Canvas credentials stay in memory; Ed storage is optional."""
 import argparse
 from collections import deque
 import contextlib
@@ -22,7 +22,7 @@ from resync_estimates import (load_history, save_history, estimate, duration,
 
 TOOL = Path(__file__).resolve().parent
 ACTIVE = {'preparing', 'syncing'}
-DEP_CHECK = "import pypdf; from zoneinfo import ZoneInfo; ZoneInfo('Europe/Oslo')"
+DEP_CHECK = "import pypdf; import keyring; from zoneinfo import ZoneInfo; ZoneInfo('Europe/Oslo')"
 LOCAL_MARKER = '.canvas-study-local.json'
 
 
@@ -32,7 +32,7 @@ class SetupError(ValueError):
 
 def clean_environment():
     env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1', PYTHONUTF8='1')
-    for name in ('CANVAS_SESSION', 'CANVAS_TOKEN', 'CANVAS_OAUTH_SESSION', 'CANVAS_OAUTH_CONFIG'):
+    for name in ('CANVAS_SESSION', 'CANVAS_TOKEN', 'CANVAS_OAUTH_SESSION', 'ED_API_TOKEN', 'CANVAS_OAUTH_CONFIG'):
         env.pop(name, None)
     return env
 
@@ -138,6 +138,9 @@ class ResyncJob:
         self.oauth_session = None
         self.redactions = []
         self.operation = 'sync'
+        self.ed_token = ''
+        self.ed_region = 'eu'
+        self.ed_remember = False
 
     def snapshot(self):
         from ai_export import output_directory, ExportError
@@ -170,14 +173,12 @@ class ResyncJob:
                     'log': '\n'.join(self.lines)}
 
     def log(self, line):
+        for value in [self.cookie, self.ed_token] + self.redactions:
+            if value:
+                line = line.replace(value, '[credential hidden]')
         if self.timing:
             self.timing.source(line)
         with self.lock:
-            # The credential is never a command argument or a log message.
-            if self.cookie:
-                line = line.replace(self.cookie, '[credential hidden]')
-            for value in self.redactions:
-                line = line.replace(value, '[credential hidden]')
             self.lines.append(line.rstrip()[:2000])
 
     def start(self, cookie, full=False, delay_seconds=None, connection_type='unknown', base_url=None, auth=None):
@@ -293,6 +294,28 @@ class ResyncJob:
                 {'operation': 'local', 'full': full, 'auth_mode': 'none'}, self.root)
         threading.Thread(target=self.run, args=(full,), daemon=True).start()
 
+    def start_ed(self, token='', region='eu', remember=False, forget=False):
+        from ed_sync import normalize_token, REGIONS
+        if not isinstance(token, str) or region not in REGIONS or not isinstance(remember, bool) or not isinstance(forget, bool):
+            raise SetupError('Check the Ed region and storage options.')
+        token = normalize_token(token) if token else ''
+        with self.lock:
+            if self.phase in ACTIVE:
+                raise RuntimeError
+            if not forget and not managed_archive(self.root):
+                raise SetupError('Open the study folder under Use downloaded files first. Create a course folder with its Ed code, such as ECON101--1/Files.')
+            self.operation = 'ed-forget' if forget else 'ed'
+            self.ed_token, self.ed_region, self.ed_remember = token, region, remember
+            self.cookie, self.oauth_session, self.redactions = '', None, []
+            self.phase, self.message = 'preparing', 'Preparing Ed Discussion…'
+            self.started, self.finished, self.exit_code = time.time(), None, None
+            self.full, self.metrics = False, {'stage': 'ed', 'requests': 0}
+            self.context_started = self.sync_started = None
+            self.lines.clear()
+            self.timing = TimingLog(self.storage, self.history['resource_salt'],
+                {'operation': self.operation, 'auth_mode': 'ed-api'}, self.root)
+        threading.Thread(target=self.run, args=(False,), daemon=True).start()
+
     def remember(self):
         try:
             save_history(self.storage, self.history)
@@ -300,6 +323,15 @@ class ResyncJob:
             self.log('Timing history could not be saved. The sync can still run.')
 
     def progress_event(self, line):
+        if line.startswith('ED_EVENT '):
+            try:
+                data = json.loads(line[len('ED_EVENT '):])
+                with self.lock:
+                    self.metrics.update(stage='context' if data.get('stage') == 'context' else 'ed',
+                                        ed_requests=number(data.get('requests'), 0))
+            except (ValueError, TypeError, AttributeError):
+                pass
+            return True
         if not line.startswith('CANVAS_EVENT '):
             return False
         try:
@@ -329,7 +361,10 @@ class ResyncJob:
         env = clean_environment()
         if credential:
             name = 'CANVAS_OAUTH_SESSION' if self.auth == 'oauth' else 'CANVAS_SESSION' if self.auth == 'session' else 'CANVAS_TOKEN'
-            env[name] = self.cookie
+            if self.ed_token:
+                env['ED_API_TOKEN'] = self.ed_token
+            elif self.cookie:
+                env[name] = self.cookie
             env['CANVAS_METRICS_SALT'] = self.history['resource_salt']
         with subprocess.Popen(command, cwd=TOOL, env=env, stdin=subprocess.DEVNULL,
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -338,6 +373,7 @@ class ResyncJob:
             env.pop('CANVAS_SESSION', None)
             env.pop('CANVAS_TOKEN', None)
             env.pop('CANVAS_OAUTH_SESSION', None)
+            env.pop('ED_API_TOKEN', None)
             for line in process.stdout:
                 if not self.progress_event(line):
                     self.log(line)
@@ -377,9 +413,16 @@ class ResyncJob:
         final_phase, final_message = 'error', 'Setup or resync failed. Check the progress log.'
         try:
             python = self.python_with_dependencies()
-            local = self.operation == 'local'
+            if self.operation == 'ed-forget':
+                code = self.command([str(python), '-B', str(TOOL / 'ed_credentials.py'), '--forget', '--region', self.ed_region])
+                self.exit_code = code
+                final_phase = 'done' if code == 0 else 'error'
+                final_message = 'Saved Ed token removed for this region.' if code == 0 else 'Could not remove the saved Ed token. Check the progress log.'
+                return
+            ed = self.operation == 'ed'
+            local = self.operation == 'local' or ed
             with self.lock:
-                self.phase, self.message = 'syncing', 'Preparing local study packs…' if local else 'Updating Canvas, timetable and study context…'
+                self.phase, self.message = 'syncing', 'Importing Ed, then building study packs…' if ed else 'Preparing local study packs…' if local else 'Updating Canvas, timetable and study context…'
             if local:
                 self.context_started = time.time()
                 self.log('Building from files already on this computer. No Canvas connection or Canvas credential is used.')
@@ -389,18 +432,22 @@ class ResyncJob:
             self.log('The sync continues if you close this tab. Reopen Canvas Resync to return.')
             command = [str(python), '-B', '-u', '-X', 'utf8', str(TOOL / 'study_update.py'),
                        '--archive', str(self.root)]
+            if ed:
+                command += ['--ed-only', '--ed-use-saved', '--ed-region', self.ed_region, '--ed-delay', '2']
+                if self.ed_remember:
+                    command += ['--ed-remember']
             if not local:
                 command += ['--base-url', self.base_url, '--sync', '--auth', self.auth, '--delay', str(self.delay),
                             '--progress-events', '--max-requests', '5000', '--max-seconds', '14400']
             if full:
                 command += ['--full'] + ([] if local else ['--verify-local'])
             self.sync_started = time.time()
-            code = self.command(command, credential=not local)
+            code = self.command(command, credential=not local or ed)
             with self.lock:
                 self.exit_code = code
                 if code == 0:
                     final_phase = 'done'
-                    final_message = 'Study packs ready. Canvas was not contacted.' if local else 'Resync complete. Your study context is up to date.'
+                    final_message = 'Ed and study packs refreshed.' if ed else 'Study packs ready. Canvas was not contacted.' if local else 'Resync complete. Your study context is up to date.'
                 elif code == 2:
                     final_phase, final_message = 'notices', 'Finished with notices. Some sources need review.'
                 else:
@@ -427,7 +474,7 @@ class ResyncJob:
                 self.exit_code = 1
         finally:
             with self.lock:
-                self.cookie = ''
+                self.cookie = self.ed_token = ''
                 self.oauth_session = None
                 self.redactions = []
                 finished = time.time()
@@ -546,7 +593,7 @@ class LocalHandler(BaseHTTPRequestHandler):
             self.reply(403, {'error': 'Reopen Canvas Resync to continue.'})
             return
         route = self.path.removeprefix('/' + self.server.key + '/')
-        if route not in {'start', 'oauth/begin', 'local/open', 'local/start'}:
+        if route not in {'start', 'oauth/begin', 'local/open', 'local/start', 'ed/start'}:
             self.reply(404, {'error': 'Not found.'})
             return
         try:
@@ -556,6 +603,11 @@ class LocalHandler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             if not isinstance(body, dict):
                 raise ValueError('Invalid request.')
+            if route == 'ed/start':
+                self.server.job.start_ed(body.get('token', ''), body.get('region', 'eu'), body.get('remember', False), body.get('forget', False))
+                body.clear()
+                self.reply(202, {'started': True})
+                return
             if route == 'local/open':
                 root = self.server.job.prepare_local()
                 try:

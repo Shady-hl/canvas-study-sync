@@ -138,6 +138,44 @@ class StudyUpdateTests(unittest.TestCase):
                 self.assertEqual(update.main(['--archive', str(root), '--query', 'working capital']), 0)
                 export.assert_called_once_with(['--archive', str(root.resolve()), '--query', 'working capital'])
 
+    def test_ed_freshness_is_separate_and_preserves_failed_attempt(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            (root / 'ED_SYNC_REPORT.json').write_text(json.dumps({'status': 'failed',
+                'started_at': '2026-10-29', 'last_successful_at': '2026-10-25', 'region': 'eu'}))
+            current, _ = self.run_refresh(root)
+            self.assertEqual(current['ed']['status'], 'failed')
+            self.assertEqual(current['ed']['last_successful_at'], '2026-10-25')
+            self.assertNotIn('ED_SYNC_REPORT.json', update.previous_sources(root / update.FOLDER, current))
+
+    def test_transient_cloud_metadata_change_rechecks_file_with_stable_hash(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / 'Course--7'
+            folder.mkdir()
+            (folder / 'lesson.txt').write_text('Stable contents')
+            before = [15, 10, 20, 30, 40]
+            hydrated = [15, 10, 21, 30, 40]
+            with patch('study_update.signature', side_effect=[before, hydrated, hydrated, hydrated]), \
+                 patch('study_update.hash_file', return_value='a' * 64) as hashed:
+                files, cache, counts = update.inventory(root)
+            self.assertEqual(hashed.call_count, 2)
+            self.assertEqual(cache['Course--7/lesson.txt']['signature'], hydrated)
+            self.assertEqual(files['Course--7/lesson.txt']['sha256'], 'a' * 64)
+
+    def test_continuously_changing_source_is_still_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / 'Course--7'
+            folder.mkdir()
+            (folder / 'lesson.txt').write_text('Changing contents')
+            signatures = [[15, i, i, 30, 40] for i in range(6)]
+            with patch('study_update.signature', side_effect=signatures), \
+                 patch('study_update.hash_file', return_value='a' * 64) as hashed:
+                with self.assertRaises(RuntimeError):
+                    update.inventory(root)
+            self.assertEqual(hashed.call_count, 3)
 
 if __name__ == '__main__':
     unittest.main()
