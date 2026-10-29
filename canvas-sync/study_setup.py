@@ -170,7 +170,7 @@ def write_portable(stage, manifest):
             if digest_file(path) != source['sha256']:
                 raise ExportError('A source changed while preparing the portable archive. Previous export retained.')
             add(path, source['path'])
-        for filename in ('.canvas-sync.json', '.canvas-study-local.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'index.html', 'SYNC_REPORT.html', 'SYNC_REPORT.json'):
+        for filename in ('.canvas-sync.json', '.canvas-study-local.json', 'AI_CONFIG.json', 'BOOK_CATALOG.json', 'index.html', 'SYNC_REPORT.html', 'SYNC_REPORT.json', 'ED_CONFIG.json', 'ED_SYNC_REPORT.json', 'ED_SYNC_REPORT.html'):
             add(root / filename, filename)
         for filename in ('timeedit.csv', 'timeedit.ics', 'timeedit-live.ics', 'schedule.json'):
             add(root / 'Schedule' / filename, 'Schedule/' + filename)
@@ -195,6 +195,10 @@ def write_portable(stage, manifest):
         for filename in ('CONTEXT_MANIFEST.json', 'CONTEXT_CHECKS.json', 'EXTRACTION_REPORT.md', 'BUILD_REPORT.json'):
             path = support_file(stage, filename)
             add(path, name + '/' + path.relative_to(stage).as_posix())
+        for folder in sorted(source_folders):
+            for path in sorted((root / folder / 'Discussions').glob('Ed-*/.raw/thread-*.json')):
+                if not path.is_symlink() and root.resolve() in path.resolve().parents:
+                    add(path, path.relative_to(root).as_posix())
         for path in sorted(tool.iterdir()):
             if path.suffix.lower() in {'.py', '.cmd', '.command', '.md', '.html'} or path.name in {'requirements-ai.txt', '.canvas-sync-tool.json'}:
                 add(path, 'canvas-sync/' + path.name)

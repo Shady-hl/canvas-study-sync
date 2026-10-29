@@ -229,6 +229,19 @@ class LocalWindowTests(unittest.TestCase):
                 self.request(route, {}, origin='https://outside.invalid')
             self.assertEqual(error.exception.code, 403)
 
+    def test_ed_route_needs_no_canvas_oauth_but_keeps_origin_checks(self):
+        self.server.development_auth = False
+        with patch.object(self.server.job, 'start_ed') as start:
+            with self.request('ed/start', {'token':'synthetic-ed-token','region':'eu','remember':True}) as response:
+                self.assertEqual(response.status,202)
+                self.assertNotIn('synthetic-ed-token',response.read().decode())
+            start.assert_called_once_with('synthetic-ed-token','eu',True,False)
+        with patch.object(self.server.job, 'start_ed') as start:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.request('ed/start', {'token':'synthetic-ed-token'}, origin='https://outside.invalid')
+            self.assertEqual(error.exception.code,403)
+            start.assert_not_called()
+
     def test_oauth_response_becomes_a_memory_only_worker_payload(self):
         import canvas_oauth as oauth
         from test_oauth import config_data, token_data

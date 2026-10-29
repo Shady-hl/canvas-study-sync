@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 from html.parser import HTMLParser
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -46,16 +47,22 @@ def inventory(root, previous=None, full=False):
     for item in discover(root, config.get('exclude', [])):
         relative = item['path']
         path = root / relative
-        before = signature(path)
-        old = previous.get(relative, {})
-        if not full and before[0] > SMALL_FILE and old.get('signature') == before:
-            digest = old['sha256']
-            reused += 1
+        # OneDrive can hydrate a file on its first read, changing metadata even
+        # when the contents are unchanged. Retry that file, never accept an
+        # unstable hash or weaken the final whole-tree consistency check.
+        for attempt in range(3):
+            before = signature(path)
+            old = previous.get(relative, {})
+            if not full and before[0] > SMALL_FILE and old.get('signature') == before:
+                digest = old['sha256']
+                reused += 1
+            else:
+                digest = hash_file(path)
+                hashed += 1
+            if before == signature(path):
+                break
         else:
-            digest = hash_file(path)
-            hashed += 1
-        if before != signature(path):
-            raise RuntimeError('A source changed during refresh. Run again after OneDrive finishes.')
+            raise RuntimeError('A source kept changing during refresh. Run again after OneDrive finishes.')
         cache[relative] = {'signature': before, 'sha256': digest}
         files[relative] = {**item, 'sha256': digest, 'bytes': before[0]}
     if not files:
@@ -203,6 +210,12 @@ def refresh(root, full=False):
                                  'note': 'Use CURRENT timetable for planning. Timetables embedded in unchanged study packs are snapshots.'},
                'scan': scan,
                'verification': 'Small source contents are hashed every run. Unchanged large files use local signatures; --full verifies all bytes.'}
+    ed_path = root / 'ED_SYNC_REPORT.json'
+    if ed_path.is_file():
+        ed = read_json(ed_path, {})
+        current['ed'] = {k: ed.get(k) for k in ('started_at', 'finished_at', 'last_successful_at', 'status', 'region')}
+        current['ed'].update(report='ED_SYNC_REPORT.json',
+            note='Last Ed import attempt, separate from Canvas and local context freshness. Older Ed snapshots remain on disk; inspect the report for current coverage.')
     changes = difference({**old, 'sources': previous_sources(folder, old)}, current) if old else []
     history = old.get('recent_refreshes', [])
     if changes:
@@ -239,14 +252,23 @@ def main(argv=None):
     parser.add_argument('--archive', '--output', type=Path, default=default_archive(__file__))
     parser.add_argument('--sync', action='store_true', help='Download Canvas first, using the configured in-memory OAuth session.')
     parser.add_argument('--auth', choices=('oauth', 'session', 'token'), default='oauth')
+    parser.add_argument('--ed', action='store_true', help='Import Ed discussions using ED_API_TOKEN (or a hidden prompt).')
+    parser.add_argument('--ed-only', action='store_true', help='Refresh Ed and study context without downloading Canvas.')
+    parser.add_argument('--ed-remember', action='store_true', help='Save a validated Ed token in the OS credential store.')
+    parser.add_argument('--ed-use-saved', action='store_true', help='Use the saved token when no token is supplied; never prompt in a background run.')
+    parser.add_argument('--ed-delay', type=float, default=0.6)
+    parser.add_argument('--ed-region', choices=('eu', 'us', 'au'), default='eu')
     parser.add_argument('--full', action='store_true', help='Verify every local source and rebuild all study output.')
     args, extra = parser.parse_known_args(argv)
     root = args.archive.expanduser().resolve()
+    ed_token = os.environ.pop('ED_API_TOKEN', '')
+    if not (args.ed or args.ed_only):
+        ed_token = ''
     try:
         if not root.is_dir():
             raise ValueError('Archive folder does not exist.')
         sync_result = 0
-        if args.sync:
+        if args.sync and not args.ed_only:
             if '--ai' in extra:
                 extra.remove('--ai')  # This wrapper controls the conditional AI build.
             command = [sys.executable, '-B', '-X', 'utf8', str(Path(__file__).with_name('canvas_sync.py')),
@@ -257,15 +279,42 @@ def main(argv=None):
             if sync_result not in (0, 2):
                 print('Canvas sync did not complete. Previous assistant snapshot was retained.', file=sys.stderr)
                 return sync_result
-        elif extra:
+        elif extra and not args.ed_only:
             # Retain advanced EXPORT_ONLY.cmd flags such as --query, --pages,
             # --timeedit-file and --output-folder with their original semantics.
             from ai_export import main as export_main
             return export_main(['--archive', str(root)] + extra)
+        ed_report = None
         with archive_lock(root):
+            if args.ed or args.ed_only:
+                import getpass
+                from ed_sync import sync as sync_ed, normalize_token
+                from ed_credentials import load, save, CredentialError
+                if not ed_token:
+                    try:
+                        ed_token = load(args.ed_region)
+                    except CredentialError as error:
+                        print(str(error), file=sys.stderr)
+                        return 1
+                if not ed_token and args.ed_use_saved:
+                    print('No Ed token is saved for this region. Paste one in the local window for the first run.', file=sys.stderr)
+                    return 1
+                ed_token = normalize_token(ed_token or getpass.getpass('Ed API token (hidden): '))
+                def ed_event(**values):
+                    print('ED_EVENT ' + json.dumps(values), flush=True)
+                ed_report = sync_ed(root, ed_token, args.ed_region, delay=args.ed_delay, event=ed_event)
+                if args.ed_remember and ed_report['status'] != 'failed':
+                    try:
+                        save(args.ed_region, ed_token)
+                        print('Ed token saved in this computer’s secure credential store. Portable exports contain no token.')
+                    except CredentialError as error:
+                        print(str(error), file=sys.stderr)
+                        ed_report['status'] = 'partial'
+                ed_event(stage='context', requests=ed_report.get('requests', 0))
+                ed_token = ''
             current = refresh(root, args.full)
         counts = current['study_context'].get('counts') or {}
-        notices = sync_result == 2 or current['timetable'].get('refresh_failed') or any(counts.get(x) for x in ('failed', 'visual_only', 'unsupported'))
+        notices = sync_result == 2 or (ed_report and ed_report['status'] != 'complete') or current['timetable'].get('refresh_failed') or any(counts.get(x) for x in ('failed', 'visual_only', 'unsupported'))
         return 2 if notices else 0
     except KeyboardInterrupt:
         print('Stopped; rerun to finish.', file=sys.stderr)
@@ -273,7 +322,34 @@ def main(argv=None):
     except Exception as error:
         # Never print an exception that could contain a private feed/credential URL.
         print('Study refresh failed (' + type(error).__name__ + '). Previous committed assistant snapshot retained; check local source access and dependencies.', file=sys.stderr)
+        detail = failure_detail(error, root)
+        if detail:
+            print('  Reason: ' + detail, file=sys.stderr)
         return 1
+    finally:
+        ed_token = ''
+
+
+def failure_detail(error, root):
+    """A short, URL-free explanation so a failed refresh is actionable."""
+    url = re.compile(r'[a-z][a-z0-9+.-]*://\S+', re.I)
+    if isinstance(error, OSError):
+        name = str(error.filename or '')
+        if '://' in name:
+            name = ''
+        elif name:
+            try:
+                name = Path(name).resolve().relative_to(Path(root).resolve().parent).as_posix()
+            except (OSError, ValueError):
+                name = Path(name).name
+        text = (error.strerror or type(error).__name__) + (': ' + name if name else '')
+        if isinstance(error, PermissionError) and sys.platform == 'darwin':
+            text += (' - macOS is blocking this app from that folder. Open a Terminal window, drag that folder '
+                     'from Finder into the Terminal window, and press Return once to grant access to just that folder.')
+        return text
+    if type(error).__name__ in {'ExportError', 'SyncError'} or isinstance(error, (ValueError, RuntimeError)):
+        return url.sub('<link hidden>', str(error))[:400]
+    return ''
 
 
 if __name__ == '__main__':
