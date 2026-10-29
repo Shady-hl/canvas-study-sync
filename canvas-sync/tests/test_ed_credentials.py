@@ -73,7 +73,7 @@ class CredentialTests(unittest.TestCase):
             with patch('ed_credentials.load', return_value='saved-fixture-token'), \
                  patch('ed_credentials.save', side_effect=saved), patch('ed_sync.sync', side_effect=imported), \
                  patch('study_update.refresh', return_value={'study_context':{},'timetable':{}}), \
-                 patch.dict('os.environ', {}, clear=True), contextlib.redirect_stdout(io.StringIO()):
+                 patch.dict('os.environ', {'ED_API_TOKEN':''}), contextlib.redirect_stdout(io.StringIO()):
                 result = study_update.main(['--archive',temp,'--ed-only','--ed-use-saved','--ed-remember'])
             self.assertEqual(result,0)
             self.assertEqual(events,['import','save'])
@@ -91,7 +91,7 @@ class CredentialTests(unittest.TestCase):
 
     def test_missing_saved_token_stops_background_run_without_a_prompt_or_context_build(self):
         with tempfile.TemporaryDirectory() as temp, \
-             patch.dict('os.environ', {}, clear=True), patch('ed_credentials.load', return_value=''), \
+             patch.dict('os.environ', {'ED_API_TOKEN':''}), patch('ed_credentials.load', return_value=''), \
              patch('getpass.getpass') as prompt, patch('study_update.refresh') as refresh, \
              contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(study_update.main(['--archive',temp,'--ed-only','--ed-use-saved']),1)
