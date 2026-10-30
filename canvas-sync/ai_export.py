@@ -72,9 +72,13 @@ def write_utf8(path, text):
 
 def digest_file(path):
     h = hashlib.sha256()
-    with path.open('rb') as f:
-        for block in iter(lambda: f.read(1024 * 1024), b''):
-            h.update(block)
+    from source_access import SourceAccessError
+    try:
+        with path.open('rb') as f:
+            for block in iter(lambda: f.read(1024 * 1024), b''):
+                h.update(block)
+    except OSError as error:
+        raise SourceAccessError(path, error) from None
     return h.hexdigest()
 
 
@@ -414,8 +418,14 @@ def course_mapping(root):
     state = root / '.canvas-sync.json'
     if state.exists():
         obj = json.loads(state.read_text(encoding='utf-8'))
-        return {str(folder): str(cid) for cid, folder in obj.get('courses', {}).items()}
-    return {p.name: p.name.rsplit('--', 1)[-1] for p in root.iterdir() if p.is_dir() and re.search(r'--\d+$', p.name)}
+        mapping = {str(folder): str(cid) for cid, folder in obj.get('courses', {}).items()}
+    else:
+        mapping = {p.name: p.name.rsplit('--', 1)[-1] for p in root.iterdir() if p.is_dir() and re.search(r'--\d+$', p.name)}
+    from study_library import local_courses
+    extra = local_courses(root.resolve())
+    if set(extra) & set(mapping) or set(extra.values()) & set(mapping.values()):
+        raise ExportError('Local and Canvas courses have conflicting identities. Restore the course mapping before refreshing.')
+    return mapping | extra
 
 
 def output_directory(root):

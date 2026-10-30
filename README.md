@@ -2,7 +2,7 @@
 
 **Turn your course files and Ed discussions into searchable, source-linked study packs.**
 
-Keep a local course archive, prepare subject packs for NotebookLM or your editor, and see where each extract came from. Your materials stay on your computer until you choose to share them.
+Keep a local course archive, prepare subject packs for NotebookLM or your editor, and see where each extract came from. Files are processed locally and saved in your chosen study folder; the app does not send them to an AI service.
 
 [**Start here**](docs/QUICKSTART.md) · [Set up with an AI assistant](AI_SETUP.md) · [Download source ZIP](https://github.com/Shady-hl/canvas-study-sync/archive/refs/heads/main.zip)
 
@@ -33,10 +33,10 @@ The app does not call an AI service, generate answers, train a model, or automat
 
 1. Install **Python 3.11 or newer**. Download and extract the source ZIP outside your private course archive.
 2. Open **OPEN_RESYNC.command** on Mac or **OPEN_RESYNC.cmd** on Windows. If Finder does not launch it, run `zsh ./OPEN_RESYNC.command` in the extracted folder.
-3. Choose **Use downloaded files → Open my study folder**. Add permitted materials inside **My course--0 / Files**, then click **Build study packs**.
-4. Open **00_START_HERE.md** in the study folder when the build finishes.
+3. Choose **Use downloaded files**. Enter a course name or Ed code, click **Create course**, select its files and click **Add selected files**. No manual folder naming is needed.
+4. Click **Build study packs**, then **Open study packs**. The home screen shows separate results for study packs, Ed and Canvas.
 
-The default study folder is **Documents/Canvas-Archive**, separate from this source repository. Add courses with distinct numeric folder endings, such as `Economics--1/Files`. For Ed, put the exact course code in the folder name, such as `ECON101--1/Files`.
+The default study folder is **Documents/Canvas-Archive**, separate from this source repository. The app creates stable folders for your courses. Existing archives and manually managed numeric course folders still work. For automatic Ed matching, use the exact Ed course code as the course name.
 
 PDF, timezone and secure-storage dependencies are prepared automatically on the first run that needs them. Keep your computer awake. Closing the browser tab does not stop an active run; reopen the launcher to return to progress.
 
@@ -45,6 +45,12 @@ PDF, timezone and secure-storage dependencies are prepared automatically on the 
 Select the correct region, paste the token into the **local app's hidden field**, and check **Remember on this computer**. A token is saved only after an authenticated import. Later, leave the field blank to reuse it. Use **Forget saved Ed token** to remove the selected region's saved credential.
 
 Storage uses **macOS Keychain**, **Windows Credential Manager**, or **Linux Secret Service**. There is no plaintext fallback. Each person and computer supplies its own token. See [Ed setup and troubleshooting](docs/ED_DISCUSSION.md).
+
+## See what finished
+
+The home screen keeps **study packs**, **Ed imports** and **Canvas downloads** separate, with their own dates. If a local file blocks rebuilding, a successful Ed import stays visible. The blocked file and next action remain on screen after reopening the app; **Open source folder** and **Retry study packs** help you recover. Your previous committed study snapshot is retained.
+
+Repeated file additions reuse identical content; changed files get a separate copy so an annotated original is preserved. File selection copies to the local app, not an external service.
 
 ## Where to find the result
 

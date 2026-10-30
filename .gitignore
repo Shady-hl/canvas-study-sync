@@ -62,3 +62,7 @@ oauth-private.json
 # Ed mapping and imported discussions are private archive data.
 ED_CONFIG.json
 ED_SYNC_REPORT.*
+
+# Local course identities and recovery status belong to private archives.
+.study-courses.json
+REFRESH_STATUS.json

@@ -17,13 +17,15 @@ If Finder cannot launch the Mac script, open Terminal in the extracted folder an
 
 ## 2A. Use downloaded files — no Canvas sign-in
 
-1. In the window, select **Use downloaded files**.
-2. Click **1. Open my study folder**. For a new archive, the tool creates `Documents/Canvas-Archive/My course--0/Files`. If the folder could not open automatically, the window shows its address so you can open it in Finder or File Explorer.
-3. Copy your permitted course downloads into **Files**. Start with a PDF or text file. PowerPoint `.pptx`, Word `.docx`, notebooks `.ipynb`, Markdown and CSV/TSV datasets are also supported. Image-only documents, diagrams and equations may need manual review of the original; there is no automatic OCR.
-4. Click **2. Build study packs** and wait for the result. You can close the tab while it runs. Keep the computer awake; reopen the same launcher to see progress.
-5. Open the study folder again and read **00_START_HERE.md**. A result with notices needs a coverage review, not an assumption that every file was read perfectly.
+1. Select **Use downloaded files**.
+2. Enter a course name or its exact Ed code, then click **Create course**. Existing archives list their courses automatically.
+3. Choose the course, select its permitted downloads, then click **Add selected files**. You can select multiple files. PDFs, `.pptx`, `.docx`, notes, notebooks and CSV/TSV datasets are supported; visual material may still need the originals. Each file can be up to 200 MB.
+4. Click **Build study packs**. You can close the tab while it works. Keep the computer awake and reopen the launcher to return.
+5. Use **Open study packs** on the home screen. Check notices and the coverage report before relying on every extract.
 
-Rename `My course` if you wish while preserving its `--0` ending. For more subjects, add folders such as `Economics--1/Files` and `Programming--2/Files`, with a different number for each course. Existing Canvas archives already have course folders: keep their names and put material in the relevant course's `Files` folder.
+The app creates course folders for you. Adding an identical file again reuses it; a changed file with the same name gets a separate copy, preserving your original and annotations. Copies stay local. **Open my study folder** is available for manual organization; legacy folders such as `Economics--1/Files` still work.
+
+The home screen records study packs, Ed and Canvas separately. A successful Ed import can be followed by a blocked local rebuild. If that happens, **Open source folder** shows the problem’s location and **Retry study packs** retries without downloading Canvas or Ed again. Make cloud-only files available offline first. The previous committed study snapshot is retained on failure, and the advice remains after reopening the app.
 
 This path makes no Canvas requests and uses no Canvas credential. A saved TimeEdit feed can still refresh. First-time setup may download dependencies. Files are processed locally and are not uploaded to a third-party study or AI service.
 
@@ -55,7 +57,9 @@ For your own edits, use a course's **Practice** folder or a separate copy. Downl
 | Message or symptom | Next step |
 |---|---|
 | Python 3.11 or newer required | Install a current Python from python.org, then reopen. Python 3.14 is supported. |
-| Add course files | Put at least one permitted source into the course's Files folder, then build again. |
+| Add course files | Choose or create a course, select its files and click Add selected files, then build. |
+| Source not available locally | Use Open source folder, make the file available offline in your cloud app, then Retry study packs. |
+| Refresh needs attention | Read the named file and recovery advice on the home screen. Previous study packs are retained. |
 | Existing unrelated files | Use a new empty destination via the `--archive` option in [usage](USAGE.md); the app leaves unrelated files untouched. |
 | Canvas sign-in setup needed | Local files work now. Automatic sync needs the approved configuration described above. |
 | Canvas asks to slow down | Let the app wait. Repeated throttling stops the run; try later rather than starting parallel runs. |
