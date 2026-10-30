@@ -1,0 +1,69 @@
+<style nonce="__LOCAL_KEY__">
+.study-home{margin:0 0 28px;border:1px solid #dce1d8;border-radius:18px;background:#fff;padding:24px}.study-home header{display:flex;justify-content:space-between;gap:18px;align-items:center}.study-home h2{margin:3px 0 7px;font-size:24px;letter-spacing:-.6px}.study-kicker{font-size:10px;letter-spacing:1.6px;font-weight:700;color:#62745e}.study-subtitle{font-size:13px;color:#657060;margin:0;line-height:1.6}.study-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.study-card{border:1px solid #e4e7df;border-radius:12px;padding:16px;background:#fafbf7}.study-card h3{font-size:12px;margin:0 0 10px;color:#56634f}.study-card strong{display:block;font-size:16px;line-height:1.4;margin-bottom:5px;font-weight:600}.study-card p{font-size:12px;line-height:1.5;color:#697063;margin:4px 0}.study-card button{margin-top:9px}.study-home button,.study-files button{font-family:inherit;font-size:12px;padding:9px 13px;width:auto;border-radius:8px;border:1px solid #cad3c4;background:#fff;color:#405943;margin-top:0;box-shadow:none;cursor:pointer}.study-home button:hover,.study-files button:hover{background:#f0f4ec}.study-home button:disabled,.study-files button:disabled{opacity:.45;cursor:default}.study-files button.study-primary,.study-problem button.study-primary{background:#405943;color:white;border-color:#405943}.study-problem{border:1px solid #e5cbb0;background:#fff9ef;padding:17px;border-radius:12px;margin-top:14px}.study-problem h3{font-size:14px;margin:0 0 7px}.study-problem p{font-size:13px;line-height:1.6;margin:6px 0}.study-problem code{display:block;overflow-wrap:anywhere;white-space:normal;font-size:12px;margin:9px 0}.study-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.study-notice{font-size:12px;line-height:1.6;color:#657060;margin:10px 0 0}.study-files label{display:block;font-size:12px;font-weight:600;margin:15px 0 7px}.study-files input:not([type=checkbox]),.study-files select{font:inherit;font-size:13px;box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #d0d6c9;background:#fff;border-radius:8px;color:#26362b}.study-files input[type=file]{padding:8px}.study-files input::file-selector-button{font:inherit;border:0;border-radius:5px;padding:6px 9px;background:#edf2e8;color:#405943;margin-right:10px}.study-create{display:grid;grid-template-columns:1fr auto;gap:8px}.study-create button{align-self:stretch}.study-files .study-hint{font-size:12px;color:#707768;line-height:1.6;margin:7px 0 11px}.study-files .study-build{width:100%;padding:13px;margin-top:18px;font-size:14px}.study-files details{font-size:12px;color:#657060;margin-top:14px}.study-files details label{display:flex;gap:8px;align-items:flex-start;font-weight:400}.study-files details input{margin:2px 0 0}.study-message{font-size:12px;line-height:1.6;margin-top:10px;white-space:pre-line;overflow-wrap:anywhere}.study-library-error{color:#905a2e}.study-files .study-open-folder{font-size:11px;border:0;padding:0;margin-top:13px;text-decoration:underline;background:transparent}@media(max-width:720px){.study-home{padding:19px}.study-home header{align-items:flex-start}.study-home h2{font-size:21px}.study-cards{grid-template-columns:1fr}.study-card{padding:13px}.study-card strong{font-size:15px}.study-home header>button{font-size:11px;max-width:110px}.study-create{grid-template-columns:1fr}.study-create button{justify-self:start}}
+</style>
+<section class="study-home" aria-labelledby="study-home-title">
+<header><div><div class="study-kicker">YOUR STUDY LIBRARY</div><h2 id="study-home-title">Ready for your next study session.</h2><p class="study-subtitle" id="study-summary">Add course files, then build searchable study packs.</p></div><button type="button" id="study-open-packs">Open study packs ↗</button></header>
+<div class="study-cards">
+<article class="study-card"><h3>Study packs</h3><strong id="study-pack-state">No packs yet</strong><p id="study-pack-detail">Build from your course files.</p><p id="study-pack-date"></p></article>
+<article class="study-card"><h3>Ed Discussion</h3><strong id="study-ed-state">Not imported yet</strong><p id="study-ed-detail">Optional posts and replies.</p><p id="study-ed-date"></p><button type="button" id="study-ed-report">Open Ed report</button></article>
+<article class="study-card"><h3>Canvas downloads</h3><strong id="study-canvas-state">Not connected</strong><p id="study-canvas-detail">You can use downloaded files now.</p><p id="study-canvas-date"></p><button type="button" id="study-canvas-report">Open Canvas report</button></article>
+</div>
+<div class="study-problem" id="study-problem" role="status" hidden><h3 id="study-problem-title"></h3><p id="study-problem-note"></p><code id="study-problem-source"></code><p id="study-problem-action"></p><div class="study-actions"><button type="button" id="study-source-folder">Open source folder</button><button type="button" class="study-primary" id="study-retry">Retry study packs</button></div></div>
+<p class="study-notice" id="study-home-message" role="status"></p>
+</section>
+<script nonce="__LOCAL_KEY__">
+(()=>{
+ const key='__LOCAL_KEY__', $=id=>document.getElementById(id);let latest=null,saving=false,selection='';
+ const date=value=>{if(!value)return '';const d=new Date(value);return Number.isNaN(d.getTime())?'':'Last finished '+d.toLocaleString([],{dateStyle:'medium',timeStyle:'short'});};
+ function text(id,value){if($(id))$(id).textContent=value;}
+ async function request(route,body){const r=await fetch(route,{method:'POST',headers:{'Content-Type':'application/json','X-Canvas-Client':key},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Error(data.error||'This action could not finish. Try again.');return data;}
+ async function refresh(){const r=await fetch('status',{cache:'no-store'});if(!r.ok)throw Error('Reopen the local app to reconnect.');const state=await r.json();render(state);}
+ function render(state){
+  latest=state;const library=state.library||{},study=library.study||{},ed=library.ed||{},canvas=library.canvas||{},available=library.available||{},attempt=study.attempt||{};
+  const running=['preparing','syncing'].includes(state.phase),locked=running||saving||library.importing;
+  text('study-summary',study.at?Number(study.sources||0).toLocaleString()+' source files in your last successful study refresh.':'Start with a course and a few files. No Canvas sign-in needed.');
+  text('study-pack-state',study.unavailable?'Status unavailable':attempt.state==='running'?(running?'Refreshing…':'Previous refresh unfinished'):attempt.state==='failed'?'Refresh needs attention':attempt.state==='notices'?'Ready with notices':study.at?'Ready to open':'No packs yet');
+  text('study-pack-detail',study.unavailable?'Check access to your saved study folder.':attempt.state==='failed'?(study.at?'Your previous study packs are retained.':'Add or check your source files, then retry.'):attempt.state==='notices'?'Some sources need their originals. Check the coverage report in your study folder.':study.at?'Originals and source references stay available.':'Add files below, then build your packs.');
+  text('study-pack-date',study.at?date(study.at):'');
+  text('study-ed-state',ed.status==='unavailable'?'Status unavailable':ed.status==='complete'?'Import complete':ed.status==='partial'?'Imported with notices':ed.status==='failed'?'Import needs attention':'Not imported yet');
+  text('study-ed-detail',ed.status==='unavailable'?'The saved report could not be read. Check folder access.':ed.at?Number(ed.threads||0)+' '+(ed.threads===1?'thread':'threads')+' · '+Number(ed.replies||0)+' '+(ed.replies===1?'reply':'replies')+'. Coverage is in the report.':'Optional. Uses your own Ed account.');text('study-ed-date',date(ed.at));
+  text('study-canvas-state',canvas.unavailable?'Status unavailable':canvas.at?'Downloads recorded':'No downloads recorded');text('study-canvas-detail',canvas.unavailable?'The saved report could not be read. Check folder access.':canvas.at?(canvas.notices?Number(canvas.notices)+' access notices. Check the report.':'See the report for downloaded material and coverage.'):'Use local files, or a configured Canvas connection.');text('study-canvas-date',date(canvas.at));
+  $('study-open-packs').disabled=locked||!available.packs;$('study-ed-report').disabled=locked||!available['ed-report'];$('study-canvas-report').disabled=locked||!available['canvas-report'];
+  const problem=attempt.problem||{};$('study-problem').hidden=!(attempt.state==='failed'||(attempt.state==='running'&&!running));text('study-problem-title',problem.title||'Study packs could not finish.');text('study-problem-note',study.at?'The last successful study refresh is shown above. New Canvas or Ed downloads can still be saved.':'Your imported originals are retained.');text('study-problem-source',problem.source||'');$('study-problem-source').hidden=!problem.source;text('study-problem-action',problem.action||'Check the progress log and retry.');$('study-source-folder').disabled=locked||!available['source-folder'];$('study-retry').disabled=locked;
+  if(!$('study-course'))return;
+  const select=$('study-course'),courses=library.courses||[],wanted=selection||select.value,signature=JSON.stringify(courses);
+  if(select.dataset.courses!==signature){select.replaceChildren();const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=courses.length?'Choose a course':'Create your first course below';select.append(placeholder);for(const course of courses){const option=document.createElement('option');option.value=course.id;option.textContent=course.name;select.append(option);}select.value=courses.some(c=>c.id===wanted)?wanted:courses.length===1?courses[0].id:'';select.dataset.courses=signature;}
+  for(const id of ['study-course','study-course-name','study-create-course','study-file-input','study-add-files','study-build','study-full'])$(id).disabled=locked;
+  $('study-add-files').disabled=locked||!select.value||!$('study-file-input').files.length;
+  $('study-build').textContent=running?'Refresh running…':'Build study packs';
+  if(library.course_problem)text('study-file-message',library.course_problem);
+ }
+ async function action(fn,messageId='study-home-message'){
+  if(saving)return;saving=true;text(messageId,'');if(latest)render(latest);
+  try{await fn();}catch(error){text(messageId,error.message);}finally{saving=false;try{await refresh();}catch(error){text(messageId,error.message);}}
+ }
+ function init(){
+  for(const [id,target] of [['study-open-packs','packs'],['study-ed-report','ed-report'],['study-canvas-report','canvas-report'],['study-source-folder','source-folder']])$(id).addEventListener('click',()=>action(()=>request('library/open',{target})));
+  $('study-retry').addEventListener('click',()=>action(async()=>{await request('library/build',{full:false});text('study-home-message','Refreshing from local files. You can follow progress below.');}));
+  if($('study-course')){
+   $('study-course').addEventListener('change',()=>{selection=$('study-course').value;if(latest)render(latest);});$('study-file-input').addEventListener('change',()=>{if(latest)render(latest);});
+   const create=()=>action(async()=>{const course=await request('library/course',{name:$('study-course-name').value.trim()});selection=course.id;$('study-course-name').value='';text('study-file-message',course.name+' is ready. Choose its files below.');},'study-file-message');
+   $('study-create-course').addEventListener('click',create);$('study-course-name').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();create();}});
+   $('study-add-files').addEventListener('click',()=>action(async()=>{
+    const files=Array.from($('study-file-input').files),course=$('study-course').value;let copied=0,reused=0;
+    for(const [index,file] of files.entries()){
+     if(file.size>200*1024*1024)throw Error(file.name+' is over the 200 MB per-file limit. Earlier files have been retained.');
+     text('study-file-message','Copying '+(index+1)+' of '+files.length+': '+file.name);
+     const response=await fetch('library/upload',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Canvas-Client':key,'X-Study-Course':course,'X-Study-Name':encodeURIComponent(file.name)},body:file});
+     const result=await response.json();if(!response.ok)throw Error((result.error||'Could not copy this file.')+' Earlier files have been retained.');if(result.reused)reused++;else copied++;
+    }
+    $('study-file-input').value='';text('study-file-message',copied+' file'+(copied===1?'':'s')+' added'+(reused?', '+reused+' already present':'')+'. Build your study packs when ready.');
+   },'study-file-message'));
+   $('study-build').addEventListener('click',()=>action(async()=>{await request('library/build',{full:$('study-full').checked});text('study-file-message','Building from your local materials. Follow progress below.');},'study-file-message'));
+   $('study-open-folder').addEventListener('click',()=>action(()=>request('library/open',{target:'archive'}),'study-file-message'));
+  }
+  refresh().catch(error=>text('study-home-message',error.message));
+ }
+ window.studyLibraryUi={render};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>

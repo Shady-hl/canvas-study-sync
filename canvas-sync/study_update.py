@@ -18,7 +18,11 @@ FOLDER = 'ASSISTANT_CONTEXT'
 
 
 def read_json(path, default):
-    return json.loads(path.read_text(encoding='utf-8')) if path.is_file() else default
+    from source_access import SourceAccessError
+    try:
+        return json.loads(path.read_text(encoding='utf-8')) if path.is_file() else default
+    except OSError as error:
+        raise SourceAccessError(path, error) from None
 
 
 def save(path, value):
@@ -33,7 +37,11 @@ def hash_file(path):
 
 
 def signature(path):
-    item = path.stat()
+    from source_access import SourceAccessError
+    try:
+        item = path.stat()
+    except OSError as error:
+        raise SourceAccessError(path, error) from None
     return [item.st_size, item.st_mtime_ns, item.st_ctime_ns,
             getattr(item, 'st_ino', 0), getattr(item, 'st_dev', 0)]
 
@@ -62,7 +70,8 @@ def inventory(root, previous=None, full=False):
             if before == signature(path):
                 break
         else:
-            raise RuntimeError('A source kept changing during refresh. Run again after OneDrive finishes.')
+            from source_access import SourceChangedError
+            raise SourceChangedError(path)
         cache[relative] = {'signature': before, 'sha256': digest}
         files[relative] = {**item, 'sha256': digest, 'bytes': before[0]}
     if not files:
@@ -172,6 +181,21 @@ def pipeline_identity(root):
 
 
 def refresh(root, full=False):
+    from source_access import record, timestamp
+    started = timestamp()
+    record(root, 'running', started)
+    try:
+        current = _refresh(root, full)
+    except Exception as error:
+        record(root, 'failed', started, error=error)
+        raise
+    counts = current.get('study_context', {}).get('counts') or {}
+    notices = any(counts.get(key) for key in ('failed', 'visual_only', 'unsupported'))
+    record(root, 'notices' if notices else 'complete', started, current=current)
+    return current
+
+
+def _refresh(root, full=False):
     """Caller holds the existing archive OS lock. CURRENT.json is the commit point."""
     from ai_export import build, output_directory
     from timeedit_context import prepare_schedule, load_schedule
@@ -196,7 +220,8 @@ def refresh(root, full=False):
     # Reject a concurrently changed local tree, even on a skipped build.
     for relative, entry in cache.items():
         if signature(root / relative) != entry['signature']:
-            raise RuntimeError('Sources changed while refreshing. Previous assistant snapshot was retained.')
+            from source_access import SourceChangedError
+            raise SourceChangedError(root / relative)
     report = read_json(root / 'SYNC_REPORT.json', {})
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     current = {'format': VERSION, 'published_at': now, 'sources': files,
@@ -332,6 +357,10 @@ def main(argv=None):
 
 def failure_detail(error, root):
     """A short, URL-free explanation so a failed refresh is actionable."""
+    from source_access import SourceAccessError, SourceChangedError, problem
+    if isinstance(error, (SourceAccessError, SourceChangedError)):
+        detail = problem(error, root)
+        return detail['title'] + (' File: ' + detail['source'] if detail['source'] else '') + ' ' + detail['action']
     url = re.compile(r'[a-z][a-z0-9+.-]*://\S+', re.I)
     if isinstance(error, OSError):
         name = str(error.filename or '')

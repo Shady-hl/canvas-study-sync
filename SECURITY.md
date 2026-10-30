@@ -31,3 +31,9 @@ Use the repository's **Security → Report a vulnerability** feature if enabled.
 ## Release checks
 
 Only source, synthetic tests and public documentation belong in this repository. `.gitignore` and `tools/check_release.py` reduce accidental inclusion; neither is a complete secret detector. Review the exact staged diff before publishing, enable GitHub secret/push protection where available, and never assume deleting a committed secret revokes it.
+
+## Local file selection
+
+Course-file uploads go only to the loopback app and use the same Host/Origin/client-key checks. The importer streams files with a 200 MB per-file limit, fixed course destinations, visible safe filenames, an archive lock and exclusive new-file creation. It rejects traversal and symlink destinations. Existing or annotated files are never overwritten; identical same-name files are reused after hashing. Incomplete copies are removed. Uploaded HTML and code are not served as app assets or executed by the importer.
+
+The course mapping and source-recovery report are private archive data. Recovery reports contain controlled messages and archive-relative source names, never raw exception values. They are separate from the committed CURRENT snapshot. Repository screenshot assets are limited to docs/assets PNG/JPEG screenshots under the source-size limit and must be manually reviewed with synthetic data.

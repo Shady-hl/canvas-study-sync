@@ -4,8 +4,8 @@ Ed is separate from Canvas. A Canvas login or CanvasAPI library cannot read Ed t
 
 ## Set up
 
-1. Open the launcher and choose **Use downloaded files → Open my study folder**.
-2. For each Ed course, create a course folder with the exact code shown by Ed and a distinct numeric ending: for example `ECON101--1/Files`. You can put local slides and notes there too. Existing Canvas archives automatically use their saved course codes.
+1. Open the launcher and choose **Use downloaded files**.
+2. Use **Create course** with the exact code shown by Ed, such as `ECON101`. The app handles its folder and stable identity. You can add local slides and notes with the file picker. Existing Canvas archives automatically use their saved course codes.
 3. Open **Import Ed Discussion**. Select Europe, United States or Australia, matching your account's region. Follow **Open Ed API token settings**, create a token in Ed, then paste it into the app's hidden field. Keep it out of chat, screenshots and reports.
 4. Optionally select **Remember on this computer**, then **Refresh Ed & study packs**.
 5. Read **ED_SYNC_REPORT.html** in your archive. Check course matches and notices before relying on the snapshot.

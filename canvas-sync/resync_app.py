@@ -141,6 +141,8 @@ class ResyncJob:
         self.ed_token = ''
         self.ed_region = 'eu'
         self.ed_remember = False
+        from study_library import StudyLibrary
+        self.library = StudyLibrary(self.root, prepare=lambda: self.prepare_local(placeholder=False))
 
     def snapshot(self):
         from ai_export import output_directory, ExportError
@@ -159,7 +161,7 @@ class ResyncJob:
                 remaining = (expected - count) * max(self.delay, model['work_per_request']) + model['local_seconds']
                 remaining += max(0, (self.metrics.get('waiting_until') or 0) - time.time())
             return {'phase': self.phase, 'message': self.message,
-                    'archive': str(self.root), 'started': self.started,
+                    'archive': str(self.root), 'started': self.started, 'library': self.library.snapshot(),
                     'base_url': self.base_url, 'auth': self.auth,
                     'operation': self.operation, 'local_ready': managed_archive(self.root),
                     'study_output': study_output,
@@ -252,7 +254,7 @@ class ResyncJob:
         self.remember()
         threading.Thread(target=self.run, args=(full,), daemon=True).start()
 
-    def prepare_local(self):
+    def prepare_local(self, placeholder=True):
         with self.lock:
             if self.phase in ACTIVE:
                 raise RuntimeError
@@ -263,7 +265,8 @@ class ResyncJob:
                 with (self.root / LOCAL_MARKER).open('x', encoding='utf-8') as handle:
                     json.dump({'format': 1, 'purpose': 'local-study'}, handle)
                 self.prepare_output()
-                (self.root / 'My course--0' / 'Files').mkdir(parents=True)
+                if placeholder:
+                    (self.root / 'My course--0' / 'Files').mkdir(parents=True)
             return self.root
 
     def prepare_output(self):
@@ -581,6 +584,8 @@ class LocalHandler(BaseHTTPRequestHandler):
         route = self.path[len('/' + self.server.key + '/'):]
         if route == '':
             html = (TOOL / 'resync_ui.html').read_text(encoding='utf-8')
+            for token, filename in [('__STUDY_HOME__', 'study_home_ui.html'), ('__STUDY_FILES__', 'study_files_ui.html')]:
+                html = html.replace(token, (TOOL / filename).read_text(encoding='utf-8'))
             self.reply(200, html.replace('__LOCAL_KEY__', self.server.key).encode('utf-8'), 'text/html; charset=utf-8')
         elif route == 'status':
             self.reply(200, dict(self.server.job.snapshot(), oauth_ready=bool(self.server.oauth_flow),
@@ -593,6 +598,13 @@ class LocalHandler(BaseHTTPRequestHandler):
             self.reply(403, {'error': 'Reopen Canvas Resync to continue.'})
             return
         route = self.path.removeprefix('/' + self.server.key + '/')
+        if route.startswith('library/'):
+            from study_library import handle_request
+            handle_request(self, route, open_study_folder)
+            return
+        if self.server.job.library.busy:
+            self.reply(409, {'error': 'Finish adding files before starting a refresh.'})
+            return
         if route not in {'start', 'oauth/begin', 'local/open', 'local/start', 'ed/start'}:
             self.reply(404, {'error': 'Not found.'})
             return

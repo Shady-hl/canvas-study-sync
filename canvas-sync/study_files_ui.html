@@ -1,0 +1,11 @@
+<div class="study-files">
+<p class="study-hint">Choose a course, add your files, then build your study packs. Originals are copied into your study folder; files you have edited are kept.</p>
+<label for="study-course">Course</label><select id="study-course"><option value="">Loading courses…</option></select>
+<label for="study-course-name">Add a course</label><div class="study-create"><input id="study-course-name" maxlength="120" placeholder="Course name or Ed code, e.g. ECON101" autocomplete="off"><button type="button" id="study-create-course">Create course</button></div>
+<p class="study-hint">Use the exact course code shown in Ed if you want its discussions matched here.</p>
+<label for="study-file-input">Course files</label><input id="study-file-input" type="file" multiple><div class="study-actions"><button type="button" id="study-add-files" disabled>Add selected files</button></div>
+<p class="study-hint">PDFs, slides, Word documents, notes, code, notebooks and datasets. Up to 200 MB per file. Visual material stays available in the originals.</p>
+<button type="button" class="study-primary study-build" id="study-build">Build study packs</button><div id="study-file-message" class="study-message" role="status"></div>
+<details><summary>Rebuild options</summary><label><input type="checkbox" id="study-full">Verify all sources and rebuild every pack. Usually unnecessary; unchanged work is reused.</label></details>
+<button type="button" class="study-open-folder" id="study-open-folder">Open my study folder</button>
+</div>

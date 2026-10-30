@@ -21,6 +21,8 @@ If I mention a session token, distinguish a browser session cookie from an API a
 
 Never ask me to paste a credential into this chat, a shell command, a screenshot or a shared log. Credential entry must stay in the local app. Preserve my existing files and settings; do not overwrite an unrelated folder.
 
+For local files, use Create course, the file picker and Add selected files; do not ask me to manually invent folder IDs. Explain the separate Canvas, Ed and study-pack results on the home screen. If a source fails, use its named recovery advice and retry the local packs without repeating successful downloads.
+
 Keep the steps short. Downloading and building study packs already happen in one resync; do not add a separate export step. Help me reach the finished result and open 00_START_HERE.md, the relevant AI_READY folder and any coverage notices. Uploading to another service is my separate choice. Do not promise complete coverage or freedom from institutional/account restrictions.
 ```
 
@@ -30,7 +32,7 @@ Keep the steps short. Downloading and building study packs already happen in one
 
 **Configured Canvas connection:** open the launcher, complete sign-in, click **Resync everything**, then open the output. Downloading, dependency preparation and study-pack generation run together. You may close the browser tab while it works; keep the computer awake and connected.
 
-**Local files:** open the launcher, click **Open my study folder**, add permitted downloads, click **Build study packs**, then open the output.
+**Local files:** open the launcher, create or choose a course, select files with **Add selected files**, click **Build study packs**, then **Open study packs**. The app handles course folders.
 
 **Your own permitted personal testing:** a session-enabled development window accepts the session value locally, then **Resync everything** produces the same output in one run. This is not the public sign-in method and does not establish permission from your institution. The explicit development options are documented in the administrator/developer guide above.
 
